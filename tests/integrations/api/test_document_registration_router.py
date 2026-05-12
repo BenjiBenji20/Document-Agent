@@ -1,14 +1,20 @@
 import pytest
-from src.main import app
-from src.dependencies.secrets import document_agent_secret
 
 # Helper to bypass the secret check for routing logic testing
 def override_document_agent_secret():
     pass
 
+def override_rate_limit_by_ip():
+    pass
+
 @pytest.fixture(autouse=True)
 def override_dependencies():
+    from src.main import app
+    from src.dependencies.secrets import document_agent_secret
+    from src.dependencies.rate_limit import rate_limit_by_ip
+    
     app.dependency_overrides[document_agent_secret] = override_document_agent_secret
+    app.dependency_overrides[rate_limit_by_ip] = override_rate_limit_by_ip
     yield
     app.dependency_overrides.clear()
 
