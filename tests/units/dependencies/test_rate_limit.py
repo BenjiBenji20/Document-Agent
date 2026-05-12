@@ -29,7 +29,7 @@ class TestRateLimitByIp:
         # Should not raise
         await dependency(request)
         self.mock_limiter.limit.assert_called_once_with(
-            "/api/public/registration/registration:192.168.1.1"
+            "/api/public/document/registration:192.168.1.1"
         )
 
     async def test_exceeded_limit_raises_429(self):

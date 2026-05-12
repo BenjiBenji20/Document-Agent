@@ -13,7 +13,7 @@ def make_request(ip: str = "192.168.1.1", headers: dict = {}) -> MagicMock:
     request.client = MagicMock()
     request.client.host = ip
     request.headers = headers
-    request.url.path = "/api/public/registration/registration"
+    request.url.path = "/api/public/document/registration"
     return request
 
 

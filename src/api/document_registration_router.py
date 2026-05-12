@@ -7,7 +7,7 @@ from src.dependencies.rate_limit import rate_limit_by_ip
 from src.cache.redis_cache import redis_service
 
 router = APIRouter(
-    prefix="/api/public/registration",  
+    prefix="/api/public/document",  
     tags=[
         "Document registration",
         "Document type",

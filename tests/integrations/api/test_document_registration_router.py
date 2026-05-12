@@ -32,7 +32,7 @@ def test_registration_router_happy_path(client, mock_redis):
     ]
 
     # Act
-    response = client.post("/api/public/registration/registration", json=payload)
+    response = client.post("/api/public/document/registration", json=payload)
 
     # Assert
     assert response.status_code == 200
@@ -55,7 +55,7 @@ def test_registration_router_negative_path_invalid_payload(client, mock_redis):
     ]
 
     # Act
-    response = client.post("/api/public/registration/registration", json=invalid_payload)
+    response = client.post("/api/public/document/registration", json=invalid_payload)
 
     # Assert
     assert response.status_code == 422
@@ -78,7 +78,7 @@ def test_registration_router_negative_path_internal_error(client, mock_redis):
     ]
 
     # Act
-    response = client.post("/api/public/registration/registration", json=payload)
+    response = client.post("/api/public/document/registration", json=payload)
 
     # Assert
     assert response.status_code == 500
