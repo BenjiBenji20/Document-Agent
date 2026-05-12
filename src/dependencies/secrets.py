@@ -20,9 +20,20 @@ async def document_agent_secret(request: Request) -> None:
             detail="Requests denied. You don't have access to this service. Please visit again later."
         )
     
+    # support both str and SecretStr
+    header_name = settings.SECRET_HEADER_NAME
+    if hasattr(header_name, "get_secret_value"):
+        header_name = header_name.get_secret_value()
+    
     # 2. check if secret is matched, if False, ban for 1 day store in cache
-    secret: str = request.headers.get(settings.SECRET_HEADER_NAME, "Anonymous")
-    if secret.strip() != settings.SECRET_HEADER_KEY:
+    secret: str = request.headers.get(header_name, "Anonymous")
+    
+    # support both str and SecretStr
+    secret_key = settings.SECRET_HEADER_KEY
+    if hasattr(secret_key, "get_secret_value"):
+        secret_key = secret_key.get_secret_value()
+        
+    if secret.strip() != secret_key:
         logger.debug("[DEBUG] Secret key not match. Check header name or value.")
         await redis_service.set(
                 key=ip,
