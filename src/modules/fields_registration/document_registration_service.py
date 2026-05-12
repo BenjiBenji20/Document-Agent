@@ -31,7 +31,7 @@ class DocumentRegistration:
             # build full items
             items = [
                 {
-                    "prefix": DOC_METADATA_PREFIX + doc.document_name + "_" + now + "_" + id,
+                    "prefix": DOC_METADATA_PREFIX + doc.document_name + "_" + now + "_" + str(id),
                     "data": {field.field: str(field.is_required) for field in doc.fields},
                 }
                 for doc in documents
@@ -49,9 +49,9 @@ class DocumentRegistration:
                     document_metadata=DocumentMetadata(
                         id=id,
                         document_name=doc.document_name,
-                        fields=[field.field for field in doc.fields]
+                        fields=doc.fields
                     ),
-                    detail=ResponseDetails(
+                    details=ResponseDetails(
                         description=(
                             "Document metadata successfully registered."
                             if success else
