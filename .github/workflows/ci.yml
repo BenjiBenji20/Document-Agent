@@ -37,12 +37,12 @@ jobs:
             - name: Run unit tests
               run: |
                   echo "=== Starting unit tests on branch: ${{ github.ref }} ==="
-                  pytest tests/units/ -v
+                  python -m pytest tests/units/ -v
 
             - name: Run integration tests
               run: |
                   echo "=== Starting integration tests on branch: ${{ github.ref }} ==="
-                  pytest tests/integrations/ -v
+                  python -m pytest tests/integrations/ -v
                   echo "=== Integration tests completed ==="
 
             - name: Final Status Check
