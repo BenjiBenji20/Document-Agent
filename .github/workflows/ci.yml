@@ -1,0 +1,50 @@
+name: Document Agent Test Workflow
+
+on:
+    push:
+        branches: [ "**" ]
+    pull_request:
+        branches: [ main ]
+
+jobs:
+    test:
+        runs-on: ubuntu-latest
+
+        # Global environment variables for all steps in this job
+        env:
+          APP_NAME: ${{ secrets.APP_NAME }}
+          LOG_LEVEL: ${{ secrets.DEBUG }}
+          SECRET_HEADER_NAME: ${{ secrets.SECRET_HEADER_NAME }}
+          SECRET_HEADER_KEY: ${{ secrets.SECRET_HEADER_KEY }}
+          UPSTASH_REDIS_REST_URL: ${{ secrets.UPSTASH_REDIS_REST_URL }}
+          UPSTASH_REDIS_REST_TOKEN: ${{ secrets.UPSTASH_REDIS_REST_TOKEN }}
+        
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            - name: Set up Python
+              uses: actions/setup-python@v5
+              with:
+                  python-version: "3.12" 
+
+            - name: Install dependencies
+              run: |
+                  echo "=== Installing dependencies ==="
+                  python -m pip install --upgrade pip
+                  pip install -r requirements.txt
+
+            - name: Run unit tests
+              run: |
+                  echo "=== Starting unit tests on branch: ${{ github.ref }} ==="
+                  pytest tests/units/ -v
+
+            - name: Run integration tests
+              run: |
+                  echo "=== Starting integration tests on branch: ${{ github.ref }} ==="
+                  pytest tests/integrations/ -v
+                  echo "=== Integration tests completed ==="
+
+            - name: Final Status Check
+              if: always() 
+              run: echo "=== Test status is ${{ job.status }} ==="
