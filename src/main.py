@@ -20,7 +20,7 @@ async def life_span(app: FastAPI):
     logger.info("App shutting down.")
         
 app = FastAPI(
-    title=settings.APP_NAME,
+    title="Document Agent",
     description="Extract document text in parallel with the help of agents. Best for automating data encoding.",
     lifespan=life_span
 )
