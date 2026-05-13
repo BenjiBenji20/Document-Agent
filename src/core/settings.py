@@ -2,7 +2,7 @@ from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
-    APP_NAME: str
+    APP_NAME: str | None = "API for document registration and management"
     LOG_LEVEL: str | None = "DEBUG"
     SECRET_HEADER_NAME: SecretStr | None = None
     SECRET_HEADER_KEY: SecretStr | None = None
