@@ -1,3 +1,5 @@
+import os
+
 import pytest
 from fastapi.testclient import TestClient
 from unittest.mock import AsyncMock
@@ -6,6 +8,9 @@ from unittest.mock import AsyncMock
 # 1. EXTERNAL SERVICE MOCKS
 # Pattern: Create Mock -> Patch -> Yield
 # ==========================================
+
+# Set APP_NAME BEFORE any imports of src.main
+os.environ.setdefault("APP_NAME", "Document Agent Test")
 
 @pytest.fixture
 def mock_redis(monkeypatch):
