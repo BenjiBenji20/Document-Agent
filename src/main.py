@@ -21,6 +21,7 @@ async def life_span(app: FastAPI):
         
 app = FastAPI(
     title=settings.APP_NAME,
+    description="Extract document text in parallel with the help of agents. Best for automating data encoding.",
     lifespan=life_span
 )
  
