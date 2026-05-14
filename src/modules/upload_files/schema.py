@@ -29,6 +29,9 @@ class GenerateGCSUploadURL(BaseModel):
 # Internal or Output only schemas
 # ===============================
 class GCSUploadURLResponse(BaseModel):
+    id: str | None = Field(
+        ..., description="File unique identifier."
+    )
     upload_url: str | None = Field(
         ...,
         min_length=1,
