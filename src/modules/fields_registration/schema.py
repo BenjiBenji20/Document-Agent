@@ -1,9 +1,7 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import UploadFile
 from pydantic import BaseModel, field_validator, ConfigDict, Field
-from src.shared.file_metadata import ALLOWED_MIME_TYPES, MAX_FILE_SIZE
 from src.utils.validators import SafeLabel, FieldName, Honeypot
 
 # =====================
