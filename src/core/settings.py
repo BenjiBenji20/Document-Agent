@@ -29,5 +29,22 @@ class Settings(BaseSettings):
         env_file=".env",
         env_file_encoding="utf-8",
     )
+    
+    @property
+    def get_gcs_credentials(self) -> dict:
+        """Returns the Google credentials as a dictionary"""
+        return {
+            "type": self.TYPE,
+            "project_id": self.PROJECT_ID,
+            "private_key_id": self.PRIVATE_KEY_ID,
+            "private_key": self.PRIVATE_KEY,
+            "client_email": self.CLIENT_EMAIL,
+            "client_id": self.CLIENT_ID,
+            "auth_uri": self.AUTH_URI,
+            "token_uri": self.TOKEN_URI,
+            "auth_provider_x509_cert_url": self.AUTH_PROVIDER_X509_CERT_URL,
+            "client_x509_cert_url": self.CLIENT_X509_CERT_URL,
+            "universe_domain": self.UNIVERSE_DOMAIN
+        }
         
 settings = Settings()
