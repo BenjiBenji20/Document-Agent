@@ -18,6 +18,8 @@ class DocumentFields(BaseModel):
         description="Field to extract in the document",
         examples=["first_name"],
     )
+        
+    model_config = ConfigDict(frozen=True)
     
 
 class DocumentRegistrationRequest(BaseModel):
@@ -40,6 +42,17 @@ class DocumentRegistrationRequest(BaseModel):
         exclude=True, # Never surfaces in serialized output / logs
         description="Anti-bot trap. Must be empty.",
     )
+
+    @field_validator("fields")
+    @classmethod
+    def validate_fields_entry_uniqueness(cls, fields: list[DocumentFields]):
+        seen = set()
+        unique_fields = []
+        for f in fields:
+            if f.field not in seen:
+                seen.add(f.field)
+                unique_fields.append(f)
+        return unique_fields
     
 
 ALLOWED_MIME_TYPES = {
