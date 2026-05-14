@@ -4,8 +4,12 @@ from uuid import UUID
 import magic  # python-magic
 from fastapi import UploadFile
 from pydantic import BaseModel, field_validator, ConfigDict, Field
+from shared.file_metadata import ALLOWED_MIME_TYPES, MAX_FILE_SIZE
 from src.utils.validators import SafeLabel, FieldName, Honeypot
 
+# =====================
+# MANUAL FEATURE MODELS
+# =====================
 class DocumentFields(BaseModel):
     is_required: bool = Field(
         default=False,
@@ -54,15 +58,6 @@ class DocumentRegistrationRequest(BaseModel):
                 unique_fields.append(f)
         return unique_fields
     
-
-ALLOWED_MIME_TYPES = {
-    "application/pdf",
-    "image/png",
-    "image/jpeg",  # covers both jpg and jpeg
-}
-
-MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
-
 class FileUpload(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
@@ -139,4 +134,23 @@ class DocumentMetadata(BaseModel):
 class DocumentRegistrationResponse(BaseModel):
     document_metadata: DocumentMetadata
     details: ResponseDetails
-    
+
+
+# ========================
+# AUTOMATIC FEATURE MODELS
+# ========================
+class AgentExtractedDocumentMetadata(DocumentRegistrationResponse):
+    file_name: str | None = Field(
+        ...,
+        description="Complete document file name.",
+        examples=["national-id.pdf", "mypsa.jpg"]
+    )
+    confidence_score: float | None = Field(
+        0.10,
+        description="Agent provided confidence score from 1-100",
+        examples=[0.84, 0.92, 0.99]
+    )
+    needs_review: False = Field(
+        False,
+        description="Flags if need manual user review and edit."
+    )

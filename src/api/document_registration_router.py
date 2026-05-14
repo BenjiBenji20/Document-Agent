@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
 from pydantic import ValidationError
 from src.modules.fields_registration.document_registration_service import DocumentRegistration
-from src.modules.fields_registration.schema import DocumentRegistrationRequest, DocumentRegistrationResponse, FileUpload
+from src.modules.fields_registration.schema import *
 from src.dependencies.secrets import document_agent_secret
 from src.dependencies.rate_limit import rate_limit_by_ip
 from src.cache.redis_cache import redis_service
@@ -20,6 +20,8 @@ router = APIRouter(
 @router.post(
     "/registration",
     response_model=list[DocumentRegistrationResponse],
+    summary="User manually register document schemas",
+    status_code=status.HTTP_201_CREATED,
     dependencies=[
         Depends(document_agent_secret),
         Depends(rate_limit_by_ip())
@@ -36,7 +38,9 @@ async def register_documents(
 
 @router.post(
     "agent-extracts",
-    response_model=list[DocumentRegistrationResponse],
+    response_model=list[AgentExtractedDocumentMetadata],
+    summary="Generate GCS signed upload URLs for multiple files at once. Agents extracts fields",
+    description="User upload files and multiple agents concurrently extracts meaningful fields use for encoding.",
     dependencies=[
         Depends(document_agent_secret),
         Depends(rate_limit_by_ip())

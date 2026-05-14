@@ -2,13 +2,10 @@ from datetime import datetime
 import logging
 from uuid import uuid4
 
-from fastapi import HTTPException, Request, status
+from fastapi import File, HTTPException, Request, UploadFile, status
 
 from src.cache.redis_cache import RedisService, DOC_METADATA_PREFIX, DOC_METADATA_TTL
-from src.modules.fields_registration.schema import (
-    DocumentMetadata, DocumentRegistrationRequest, 
-    DocumentRegistrationResponse, ResponseDetails
-)
+from src.modules.fields_registration.schema import *
 
 logger = logging.getLogger(__name__)
 
@@ -70,4 +67,86 @@ class DocumentRegistration:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Failed to save document metadata."
+            )
+            
+            
+    async def call_agent_for_extract_schema(self, files: list[UploadFile] = File(...)) -> list[AgentExtractedDocumentMetadata]:
+        logger.info(f"[LOG] Start agent to extract schemas from the files. \n Files count: {len(files)}")
+        try:
+            """
+            1. System provides unique uuid4() for each file
+            2. If passed files len >= 8 or 8+ pdf pages or 10mb+ file size, call orchestrator to divide the labour.
+            3. Call agent worker to extract document schemas.
+                responsibilities:
+                - worker receives passed file metadata to help extraction accuracy
+                - extract document name eg. National ID (become document type)
+                - extract document schemas under the document name eg. first_name, last_name,...
+                - decide whether extracted schema is nullable or required
+                - sends extraction confidence score to the validator # to decide
+                
+                constraints:
+                - focus strictly on visual
+                - no duplicate document type eg. User passed 2 identical documents, agents MUST identify them as one
+                - standardize field names into snake_case
+                - process in parallel
+                
+                return model (per file):
+                [
+                    {
+                        "id": uuid4(), # provided by system
+                        "document_name": "national id",
+                        "file_name": "my-national-id.jpg",
+                        "confidence_score": 0.92,
+                        "fields": [
+                            {"field": "first_name", "is_required": True},
+                            {"field": "last_name", "is_required": True},...
+                        ]
+                    },...
+                ]
+            4. System validate document_name uniqueness to lessen validator call.
+                - Flag: this file and this file has identical metadata (extracted by worker)
+                - Use System-Level "Fuzzy" Grouping
+                - groups the file with conflicting document metadata
+                
+                Example Case 1: Naming Inconsistency
+                    File A: document_name: "National ID", fields: ["first_name", "last_name", "dob"]
+                    File B: document_name: "Philsys ID", fields: ["first_name", "last_name", "dob"]
+
+                    Logic: Even though the names differ, the field set is a 100% match. The system should group these together because they represent the same data structure.
+                
+                return model:
+                [
+                    {
+                        "reason": "Fields are identical but different document_name.",
+                        "candidates": [
+                            {"id": "uuid_A", "document_name": "National ID", "confidence": 0.95},
+                            {"id": "uuid_B", "document_name": "Philsys ID", "confidence": 0.88}
+                        ]
+                    },... # is this enough?
+                ]
+            5. Call agent validator to examine extracted schemas by the worker.
+                responsibilities:
+                - receives separately the cleaned and uncleaned grouped of documents
+                - validator only does meaningful work on conflicting group of documents and else bypass  
+                - analyze identical document metadata
+                - decides which document type to use based on newest format and industry standard
+                - validate and correct the extracted schemas from document type
+                
+                - validator returns only unique document type eg. national id, psa, etc...
+                - validator returns only unique schemas under document_name eg. first_name, last_name, etc...
+                - sends final confidence score to client 
+                
+                return model (per file): list[AgentExtractedDocumentMetadata]
+            """
+            # files len >= 8 or 8+ pdf pages or 10mb+ file size, call orchestrator
+            if len(files) >= 8:
+                logger.info(f"[LOG] Upload quantity exceeds to 7: {len(files)}")
+                   
+            
+            
+        except Exception as e:
+            logger.error(f"[ERROR] Agent failed to extract document metadata: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Agent failed to extract document metadata."
             )
