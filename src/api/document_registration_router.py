@@ -35,18 +35,18 @@ async def register_documents(
     
 
 @router.post(
-    "ai-extracts",
+    "agent-extracts",
     response_model=list[DocumentRegistrationResponse],
     dependencies=[
         Depends(document_agent_secret),
         Depends(rate_limit_by_ip())
     ]
 )
-async def ai_extract_fields(
+async def agent_extract_schemas(
     request: Request,
     files: list[UploadFile] = File(...),
 ):
-    """ai extract fields and suggest if required/nullable"""
+    """agent extract schemas and suggest if required/nullable"""
     validated_files = []
     try:
         for file in files:
