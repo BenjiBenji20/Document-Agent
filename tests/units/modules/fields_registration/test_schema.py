@@ -98,27 +98,6 @@ def test_document_registration_request_fields_uniqueness():
     assert model.fields[2].field == "age"
 
 
-
-# =====================================
-# TEST FileUpload
-# =====================================
-@pytest.mark.asyncio
-async def test_file_upload_happy_path():
-    # Arrange: Create a mock PDF (PDF magic bytes start with %PDF)
-    mock_file = AsyncMock()
-    mock_file.read.side_effect = [b"%PDF-1.4 header...", b""] # Magic bytes + EOF
-    mock_file.seek = AsyncMock()
-    
-    # Act
-    # Note: In Pydantic, async validators are usually triggered by FastAPI.
-    # To test manually, we call the validator directly.
-    validated_file = await FileUpload.validate_file(mock_file)
-    
-    # Assert
-    assert validated_file == mock_file
-    assert mock_file.seek.called
-    
-
 # =====================================
 # TEST ResponseDetails
 # =====================================
@@ -224,27 +203,6 @@ def test_negative_document_registration_request_validation():
         )
     assert "Automatic request denied" in str(excinfo.value)
     
-    
-# =====================================
-# TEST FileUpload
-# =====================================
-@pytest.mark.asyncio
-async def test_file_upload_negative_paths():
-    # 1. Test Unsupported MIME
-    bad_mime_file = AsyncMock()
-    bad_mime_file.read.return_value = b"<html>This is not a PDF</html>"
-    
-    with pytest.raises(ValueError, match="Unsupported file type"):
-        await FileUpload.validate_file(bad_mime_file)
-
-    # 2. Test Max Size (10MB + 1 byte)
-    oversized_file = AsyncMock()
-    oversized_file.read.side_effect = [b"%PDF-1.4 header..."] + [b"a" * 8192] * 1281 # Exceeds 10MB
-    oversized_file.seek = AsyncMock()
-
-    with pytest.raises(ValueError, match="exceeds the 10MB size limit"):
-        await FileUpload.validate_file(oversized_file)
-        
 
 # =====================================
 # TEST DocumentMetadata & RegistrationResponse

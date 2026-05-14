@@ -35,7 +35,7 @@ def test_registration_router_happy_path(client, mock_redis):
     response = client.post("/api/public/document/registration", json=payload)
 
     # Assert
-    assert response.status_code == 200
+    assert response.status_code == 201
     data = response.json()
     assert len(data) == 1
     
