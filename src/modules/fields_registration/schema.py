@@ -1,7 +1,6 @@
 from typing import Annotated
 from uuid import UUID
 
-import magic  # python-magic
 from fastapi import UploadFile
 from pydantic import BaseModel, field_validator, ConfigDict, Field
 from src.shared.file_metadata import ALLOWED_MIME_TYPES, MAX_FILE_SIZE
@@ -57,37 +56,6 @@ class DocumentRegistrationRequest(BaseModel):
                 seen.add(f.field)
                 unique_fields.append(f)
         return unique_fields
-    
-class FileUpload(BaseModel):
-    model_config = ConfigDict(arbitrary_types_allowed=True)
-
-    file: UploadFile
-
-    @field_validator("file")
-    @classmethod
-    async def validate_file(cls, file: UploadFile) -> UploadFile:
-        # Read a small header chunk — enough for magic byte detection
-        header = await file.read(2048)
-        
-        # Detect MIME from actual bytes, not the filename or Content-Type header
-        detected_mime = magic.from_buffer(header, mime=True)
-        if detected_mime not in ALLOWED_MIME_TYPES:
-            raise ValueError(
-                f"Unsupported file type '{detected_mime}'. "
-                f"Allowed: pdf, png, jpg, jpeg."
-            )
-
-        # Check file size without loading the whole file into memory
-        await file.seek(0)
-        size = 0
-        while chunk := await file.read(8192):
-            size += len(chunk)
-            if size > MAX_FILE_SIZE:
-                raise ValueError("File exceeds the 10MB size limit.")
-
-        # Reset cursor so the endpoint can read the file normally after validation
-        await file.seek(0)
-        return file
     
     
 # ==============================+
