@@ -4,7 +4,7 @@ from uuid import UUID
 import magic  # python-magic
 from fastapi import UploadFile
 from pydantic import BaseModel, field_validator, ConfigDict, Field
-from shared.file_metadata import ALLOWED_MIME_TYPES, MAX_FILE_SIZE
+from src.shared.file_metadata import ALLOWED_MIME_TYPES, MAX_FILE_SIZE
 from src.utils.validators import SafeLabel, FieldName, Honeypot
 
 # =====================
@@ -150,7 +150,7 @@ class AgentExtractedDocumentMetadata(DocumentRegistrationResponse):
         description="Agent provided confidence score from 1-100",
         examples=[0.84, 0.92, 0.99]
     )
-    needs_review: False = Field(
-        False,
+    needs_review: bool = Field(
+        default=False,
         description="Flags if need manual user review and edit."
     )
