@@ -1,7 +1,7 @@
 from pydantic import BaseModel, Field, field_validator
 from src.shared.file_metadata import ALLOWED_MIME_TYPES, MAX_FILE_SIZE
 
-class GenerateGCSUploadURL(BaseModel):
+class UploadFileMetadata(BaseModel):
     file_name: str = Field(..., min_length=1, max_length=255)
     file_type: str = Field(
         ..., 
