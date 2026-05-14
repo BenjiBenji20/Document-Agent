@@ -74,6 +74,30 @@ def test_happy_document_registration_request_validation(input_data):
     # Assert - Honeypot
     assert model.honeypot == input_data["honeypot"]
 
+def test_document_registration_request_fields_uniqueness():
+    # Arrange: Create request with duplicate fields (exact match and different flags)
+    input_data = {
+        "document_name": "Unique Check",
+        "fields": [
+            {"field": "first_name", "is_required": True},
+            {"field": "last_name", "is_required": True},
+            {"field": "first_name", "is_required": False}, # Duplicate name!
+            {"field": "age", "is_required": False},
+            {"field": "last_name", "is_required": False}   # Duplicate name!
+        ]
+    }
+    
+    # Act
+    model = DocumentRegistrationRequest(**input_data)
+    
+    # Assert
+    assert len(model.fields) == 3
+    assert model.fields[0].field == "first_name"
+    assert model.fields[0].is_required is True # Took the first one
+    assert model.fields[1].field == "last_name"
+    assert model.fields[2].field == "age"
+
+
 
 # =====================================
 # TEST FileUpload
