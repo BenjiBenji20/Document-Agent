@@ -22,11 +22,11 @@ def valid_documents():
 @pytest.mark.asyncio
 async def test_save_document_metadata_happy_path(mock_redis, mock_request, valid_documents):
     # Arrange
-    service = DocumentRegistration(mock_redis)
+    service = DocumentRegistration(mock_redis, request=mock_request)
     mock_redis.set_hash_many.return_value = True
 
     # Act
-    responses = await service.save_document_metadata(request=mock_request, documents=valid_documents)
+    responses = await service.save_document_metadata(documents=valid_documents)
 
     # Assert
     assert mock_redis.set_hash_many.called
@@ -42,11 +42,11 @@ async def test_save_document_metadata_happy_path(mock_redis, mock_request, valid
 @pytest.mark.asyncio
 async def test_save_document_metadata_negative_path_redis_failure(mock_redis, mock_request, valid_documents):
     # Arrange: Redis fails to set
-    service = DocumentRegistration(mock_redis)
+    service = DocumentRegistration(mock_redis, request=mock_request)
     mock_redis.set_hash_many.return_value = False
 
     # Act
-    responses = await service.save_document_metadata(request=mock_request, documents=valid_documents)
+    responses = await service.save_document_metadata(documents=valid_documents)
 
     # Assert
     assert mock_redis.set_hash_many.called
@@ -61,12 +61,12 @@ async def test_save_document_metadata_negative_path_redis_failure(mock_redis, mo
 @pytest.mark.asyncio
 async def test_save_document_metadata_negative_path_exception(mock_redis, mock_request, valid_documents):
     # Arrange: Redis throws an exception
-    service = DocumentRegistration(mock_redis)
+    service = DocumentRegistration(mock_redis, request=mock_request)
     mock_redis.set_hash_many.side_effect = Exception("Redis connection error")
 
     # Act & Assert
     with pytest.raises(HTTPException) as exc_info:
-        await service.save_document_metadata(request=mock_request, documents=valid_documents)
+        await service.save_document_metadata(documents=valid_documents)
         
     assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
     assert exc_info.value.detail == "Failed to save document metadata."
