@@ -15,6 +15,7 @@ class UploadFileMetadata(BaseModel):
     def validate_file_type(cls, file_type: str) -> None:
         if file_type not in ALLOWED_MIME_TYPES:
             raise ValueError(f"Unsupported file type: {file_type}")
+        return file_type
 
     @field_validator("file_size")
     @classmethod
@@ -23,6 +24,7 @@ class UploadFileMetadata(BaseModel):
             raise ValueError(
                 f"File size {file_size} exceeds maximum allowed size of {MAX_FILE_SIZE} bytes."
             )
+        return file_size
 
 
 # ==============================+
