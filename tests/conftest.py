@@ -38,12 +38,30 @@ def mock_redis(monkeypatch):
     yield mock
 
 
-# FUTURE implementation pattern
-# @pytest.fixture
-# def mock_gcp_storage(monkeypatch):
-#     mock_storage = AsyncMock()
-#     monkeypatch.setattr("src.infrastructure.gcp.storage_client", mock_storage)
-#     yield mock_storage
+@pytest.fixture
+def mock_gcs_client(monkeypatch):
+    """
+    Intercepts the GCP Storage client creation and replaces it with a MagicMock.
+    Also mocks credentials loading to avoid needing real JSON keys during tests.
+    """
+    from unittest.mock import MagicMock
+    from google.cloud import storage
+    
+    mock_client = MagicMock(spec=storage.Client)
+    mock_bucket = MagicMock(spec=storage.Bucket)
+    mock_client.bucket.return_value = mock_bucket
+    
+    # Mock the Client constructor
+    monkeypatch.setattr("src.infrastructure.gcs_client.storage.Client", MagicMock(return_value=mock_client))
+    
+    # Mock credentials loading so it doesn't crash on dummy settings
+    mock_credentials = MagicMock()
+    monkeypatch.setattr(
+        "src.infrastructure.gcs_client.service_account.Credentials.from_service_account_info", 
+        MagicMock(return_value=mock_credentials)
+    )
+    
+    yield mock_client
 
 
 # ==========================================
