@@ -42,7 +42,8 @@ def mock_redis(monkeypatch):
 def mock_gcs_client(monkeypatch):
     """
     Intercepts the GCP Storage client creation and replaces it with a MagicMock.
-    Also mocks credentials loading to avoid needing real JSON keys during tests.
+    We intentionally DO NOT mock `from_service_account_info` so that the actual
+    secret keys in settings are parsed and validated by the Google library.
     """
     from unittest.mock import MagicMock
     from google.cloud import storage
@@ -53,13 +54,6 @@ def mock_gcs_client(monkeypatch):
     
     # Mock the Client constructor
     monkeypatch.setattr("src.infrastructure.gcs_client.storage.Client", MagicMock(return_value=mock_client))
-    
-    # Mock credentials loading so it doesn't crash on dummy settings
-    mock_credentials = MagicMock()
-    monkeypatch.setattr(
-        "src.infrastructure.gcs_client.service_account.Credentials.from_service_account_info", 
-        MagicMock(return_value=mock_credentials)
-    )
     
     yield mock_client
 
