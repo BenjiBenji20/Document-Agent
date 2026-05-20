@@ -30,14 +30,9 @@ class UploadFileMetadata(BaseModel):
 # ==============================+
 # Internal or Output only schemas
 # ===============================
-class GCSUploadURLResponse(BaseModel):
+class GCSDownloadURLResponse(BaseModel):
     id: str | None = Field(
         ..., description="File unique identifier."
-    )
-    upload_url: str | None = Field(
-        ...,
-        min_length=1,
-        description="GCS layer generated upload URL via stored flat object."
     )
     storage_path: str | None = Field(
         ...,
@@ -49,5 +44,13 @@ class GCSUploadURLResponse(BaseModel):
     expires_in_seconds: int | None = Field(
         10,
         description="1hr upload expiration in seconds"
+    )
+
+
+class GCSUploadURLResponse(GCSDownloadURLResponse):
+    upload_url: str | None = Field(
+        ...,
+        min_length=1,
+        description="GCS layer generated upload URL via stored flat object."
     )
     

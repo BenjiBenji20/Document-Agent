@@ -1,5 +1,6 @@
-from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Request, status
 from pydantic import ValidationError
+from src.modules.gcs_operations.schema import UploadFileMetadata
 from src.modules.fields_registration.document_registration_service import DocumentRegistration
 from src.modules.fields_registration.schema import *
 from src.dependencies.secrets import document_agent_secret
@@ -32,8 +33,14 @@ async def register_documents(
     documents: list[DocumentRegistrationRequest]
 ):
     """Store document metadata in redis cache with 1 day TTL"""
-    service = DocumentRegistration(redis_service)
-    return await service.save_document_metadata(documents=documents, request=request)
+    if len(documents) < 1:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No document metadata found."
+        )
+    
+    service = DocumentRegistration(redis_service, request)
+    return await service.save_document_metadata(documents=documents)
     
 
 @router.post(
@@ -48,26 +55,18 @@ async def register_documents(
 )
 async def agent_extract_schemas(
     request: Request,
-    files: list[UploadFile] = File(...),
+    files: list[UploadFileMetadata]
 ):
-    """agent extract schemas and suggest if required/nullable"""
-    validated_files = []
-    try:
-        for file in files:
-            validated_files.append(FileUpload(file=file))
-    except ValidationError as e:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail=e.errors()
-        )
-        
-    # pass only the validated files
-    if len(validated_files) < 1:
+    """
+    agent extract schemas and suggest if required/nullable
+    client direct upload to GCS using Signed URL
+    """
+    if len(files) < 1:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="No files found."
         )
         
-    service = DocumentRegistration(redis_service)
+    service = DocumentRegistration(redis_service, request)
     
     

@@ -10,25 +10,25 @@ from src.modules.fields_registration.schema import *
 logger = logging.getLogger(__name__)
 
 class DocumentRegistration:
-    def __init__(self, redis_service: RedisService):
+    def __init__(self, redis_service: RedisService, request: Request):
         self.redis_service = redis_service
+        self.request = request
+        self.now = datetime.now().strftime("%Y-%m-%d")
     
     async def save_document_metadata(
         self,
-        request: Request, 
         documents: list[DocumentRegistrationRequest]
     ) -> list[DocumentRegistrationResponse]:
         logger.info(f"[LOG] Start to save document metadata. \nDocument types amount: {len(documents)}")
 
         try:
-            now = datetime.now().strftime("%Y-%m-%d")
-            key = request.client.host if request.client else "unknown"
+            key = self.request.client.host if self.request.client else "unknown"
             id=uuid4()
             
             # build full items
             items = [
                 {
-                    "prefix": DOC_METADATA_PREFIX + doc.document_name + "_" + now + "_" + str(id),
+                    "prefix": DOC_METADATA_PREFIX + doc.document_name + "_" + self.now + "_" + str(id),
                     "data": {field.field: str(field.is_required) for field in doc.fields},
                 }
                 for doc in documents
