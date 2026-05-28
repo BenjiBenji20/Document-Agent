@@ -31,12 +31,10 @@ class DirectGCSOperationsService:
         try:
             results: list[GCSUploadURLResponse] = []
             
-            ip = str(self.request.client.host if self.request.client else "unknown")
-            now = datetime.now().strftime("%Y-%m-%d")
             for file in files:
                 id = str(uuid4())
                 storage_path = gcs_service.get_gcs_storage_path(
-                    file_name=file.file_name, date=now, id=id, ip=ip
+                    file_id=id
                 )
             
                 logger.info(f"[LOG] Generating GCS signed URI for file {file.file_name}")
@@ -69,16 +67,13 @@ class DirectGCSOperationsService:
     async def generate_gcs_download_url(
         self, 
         file_id: str, 
-        file_name: str, 
-        date: str = datetime.now().strftime("%Y-%m-%d")
     ) -> GCSDownloadURLResponse:
         """Method use by model to download the file directly from GCS."""
         logger.info("[LOG] Generating URLs for direct GCS download to file...")
         
         try:
-            ip = str(self.request.client.host if self.request.client else "unknown")
             storage_path = gcs_service.get_gcs_storage_path(
-                file_name=file_name, date=date, id=file_id, ip=ip
+                file_id=file_id
             )
             
             download_url = await asyncio.to_thread(

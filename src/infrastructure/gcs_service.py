@@ -118,8 +118,8 @@ class GCSService:
         return None
     
     
-    def get_gcs_storage_path(self, file_name: str, date: str, id: str, ip: str = "unknown") -> str:
-        return f"api/public/upload/{ip}/{date}/{id}/{file_name}"
+    def get_gcs_storage_path(self, file_id: str) -> str:
+        return f"api/public/upload/{file_id}"
         
 
 gcs_service = GCSService()

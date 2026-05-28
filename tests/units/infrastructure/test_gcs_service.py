@@ -198,13 +198,10 @@ def test_get_signing_credentials_negative_path_empty(gcs_svc, monkeypatch):
 
 def test_get_gcs_storage_path(gcs_svc):
     # Arrange
-    filename = "tax_2026.pdf"
-    date_str = "2026-05-15"
-    doc_id = "uuid-1234"
-    ip = "192.168.1.1"
+    file_id = "uuid-1234"
     
     # Act
-    path = gcs_svc.get_gcs_storage_path(filename, date_str, doc_id, ip)
+    path = gcs_svc.get_gcs_storage_path(file_id=file_id)
     
     # Assert
-    assert path == "api/public/upload/192.168.1.1/2026-05-15/uuid-1234/tax_2026.pdf"
+    assert path == "api/public/upload/uuid-1234"
