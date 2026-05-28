@@ -1,5 +1,6 @@
 src/test_code/
 secrets/
+scratch/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
