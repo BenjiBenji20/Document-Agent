@@ -43,3 +43,5 @@ upstash-ratelimit==1.1.0
 upstash-redis==1.7.0
 urllib3==2.7.0
 uvicorn==0.46.0
+
+google-genai
