@@ -100,23 +100,3 @@ class DocumentMetadata(BaseModel):
 class DocumentRegistrationResponse(BaseModel):
     document_metadata: DocumentMetadata
     details: ResponseDetails
-
-
-# ========================
-# AUTOMATIC FEATURE MODELS
-# ========================
-class AgentExtractedDocumentMetadata(DocumentRegistrationResponse):
-    file_name: str | None = Field(
-        ...,
-        description="Complete document file name.",
-        examples=["national-id.pdf", "mypsa.jpg"]
-    )
-    confidence_score: float | None = Field(
-        0.10,
-        description="Agent provided confidence score from 1-100",
-        examples=[0.84, 0.92, 0.99]
-    )
-    needs_review: bool = Field(
-        default=False,
-        description="Flags if need manual user review and edit."
-    )

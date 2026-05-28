@@ -5,7 +5,7 @@ from fastapi import HTTPException, status
 
 from src.core.settings import settings
 from src.infrastructure.gcs_service import gcs_service
-from src.modules.gcs_operations.schema import *
+from src.modules.gcs_operations.direct_gcs_operations_schema import *
 import logging
 
 logger = logging.getLogger(__name__)

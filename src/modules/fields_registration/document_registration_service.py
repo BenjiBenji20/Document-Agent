@@ -3,8 +3,9 @@ from uuid import uuid4
 
 from fastapi import File, HTTPException, Request, UploadFile, status
 
+from src.agents.schemas.agent_schemas import AgentExtractedDocumentMetadata
 from src.cache.redis_cache import RedisService, DOC_METADATA_PREFIX, DOC_METADATA_TTL
-from src.modules.fields_registration.schema import *
+from src.modules.fields_registration.document_registration_schema import *
 
 logger = logging.getLogger(__name__)
 
@@ -73,7 +74,7 @@ class DocumentRegistration:
             )
             
             
-    async def call_agent_for_extract_schema(
+    async def call_agent_to_extract_schema(
         self, documents: list[UploadFile] = File(...)
     ) -> list[AgentExtractedDocumentMetadata]:
         logger.info(f"[LOG] Start agent to extract schemas from the documents. \n documents count: {len(documents)}")
