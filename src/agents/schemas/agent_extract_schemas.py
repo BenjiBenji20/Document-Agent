@@ -1,7 +1,19 @@
-from typing import Annotated
 from enum import Enum
 
 from pydantic import BaseModel, Field
+
+class BoundingBox(BaseModel):
+    ymin: int = Field(..., description="Top boundary coordinate normalized to an integer between 0 and 1000")
+    xmin: int = Field(..., description="Left boundary coordinate normalized to an integer between 0 and 1000")
+    ymax: int = Field(..., description="Bottom boundary coordinate normalized to an integer between 0 and 1000")
+    xmax: int = Field(..., description="Right boundary coordinate normalized to an integer between 0 and 1000")
+
+
+class ExtractionStatus(str, Enum):
+    SUCCESS = "success"
+    FAILED = "failed"
+    NEEDS_REVIEW = "needs_review"
+
 
 class DocumentFields(BaseModel):
     is_required: bool = Field(
@@ -12,12 +24,10 @@ class DocumentFields(BaseModel):
         ...,
         description="Field to extract in the document. eg.: first_name",
     )
-
-class ExtractionStatus(str, Enum):
-    SUCCESS = "success"
-    FAILED = "failed"
-    NEEDS_REVIEW = "needs_review"
-
+    bounding_box: BoundingBox = Field(
+        0, description="Bounding box coordinates of the field. eg.: [485, 231, 654, 272]"
+    )
+    
     
 class AgentExtractedDocumentMetadata(BaseModel):
     document_name: str = Field(
