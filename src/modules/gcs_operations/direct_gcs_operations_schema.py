@@ -1,12 +1,11 @@
 from pydantic import BaseModel, Field, field_validator
 from src.shared.file_metadata import ALLOWED_MIME_TYPES, MAX_FILE_SIZE
 
-class UploadFileMetadata(BaseModel):
+class GCSUploadFileMetadata(BaseModel):
     file_name: str = Field(..., min_length=1, max_length=255)
     file_type: str = Field(
         ..., 
-        description="MIME type of the file",
-        examples=[".jpg", ".png", ".pdf", ".jpeg"]
+        description="MIME type of the file. eg: .jpg, .png, .pdf, .jpeg",
     )
     file_size: int = Field(..., gt=0, description="File size in bytes")
     
@@ -27,6 +26,13 @@ class UploadFileMetadata(BaseModel):
         return file_size
 
 
+class GCSFileObjectMetadata(GCSUploadFileMetadata):
+    # metadata of uploaded files from gcs
+    id: str | None = Field(
+        ..., description="File unique identifier."
+    )
+
+
 # ==============================+
 # Internal or Output only schemas
 # ===============================
@@ -38,8 +44,7 @@ class GCSDownloadURLResponse(BaseModel):
         ...,
         min_length=1,
         max_length=510,
-        description="Service layer defined and as file dir in GCS",
-        examples=["/api/public/", "/api/private/"]
+        description="Service layer defined and as file dir in GCS. eg: /api/public/, /api/private/",
     )
     expires_in_seconds: int | None = Field(
         10,
