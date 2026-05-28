@@ -15,7 +15,7 @@ class DirectGCSOperationsService:
         pass
     
     async def bulk_generate_gcs_upload_urls(
-        self, files: list[UploadFileMetadata]
+        self, files: list[GCSUploadFileMetadata]
     ) -> list[GCSUploadURLResponse]:
         logger.info("[LOG] Generating URLs for direct GCS upload...")
 
