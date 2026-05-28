@@ -27,4 +27,6 @@ app = FastAPI(
  
 # Register routers
 from src.api.document_registration_router import router as document_registration_router
+from src.api.gcs_operations_router import router as gcs_operations_router
 app.include_router(document_registration_router)
+app.include_router(gcs_operations_router)
