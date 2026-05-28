@@ -2,7 +2,7 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock
 from fastapi import HTTPException, Request, status
 from src.modules.fields_registration.document_registration_service import DocumentRegistration
-from src.modules.fields_registration.schema import DocumentRegistrationRequest, DocumentFields
+from src.modules.fields_registration.document_registration_schema import DocumentRegistrationRequest, DocumentFields
 
 @pytest.fixture
 def mock_request():

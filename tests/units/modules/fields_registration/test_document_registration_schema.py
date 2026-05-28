@@ -3,7 +3,7 @@ from uuid import uuid4
 
 from pydantic import ValidationError
 import pytest
-from src.modules.fields_registration.schema import *
+from src.modules.fields_registration.document_registration_schema import *
 
 # ============================================================
 # HAPPY PATH TESTS - pydantic model

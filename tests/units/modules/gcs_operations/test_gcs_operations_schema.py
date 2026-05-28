@@ -1,5 +1,5 @@
 import pytest
-from src.modules.gcs_operations.schema import *
+from src.modules.gcs_operations.direct_gcs_operations_schema import *
 from pydantic import ValidationError
 from uuid import uuid4
 
