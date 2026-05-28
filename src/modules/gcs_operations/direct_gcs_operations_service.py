@@ -1,8 +1,7 @@
 import asyncio
-from datetime import datetime
 from uuid import uuid4
 
-from fastapi import HTTPException, Request, status
+from fastapi import HTTPException, status
 
 from src.core.settings import settings
 from src.infrastructure.gcs_service import gcs_service
@@ -12,8 +11,8 @@ import logging
 logger = logging.getLogger(__name__)
 
 class DirectGCSOperationsService:
-    def __init__(self, request: Request):
-        self.request = request
+    def __init__(self):
+        pass
     
     async def bulk_generate_gcs_upload_urls(
         self, files: list[UploadFileMetadata]

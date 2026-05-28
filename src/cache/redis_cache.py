@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
         key={ip}, prefix=ban_ip, suc_ip
         
     document metadata prefix:
-        key={ip}, prefix=doc_metadata_{document name}_{date}_{uuid4()}
+        key={ip}, prefix=doc_metadata_{uuid4()}
 """
 # IP
 BAN_IP_CACHE_PREFIX = "ban_ip"

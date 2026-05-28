@@ -1,4 +1,3 @@
-from datetime import datetime
 import logging
 from uuid import uuid4
 
@@ -13,7 +12,6 @@ class DocumentRegistration:
     def __init__(self, redis_service: RedisService, request: Request):
         self.redis_service = redis_service
         self.request = request
-        self.now = datetime.now().strftime("%Y-%m-%d")
     
     async def save_document_metadata(
         self,
@@ -23,16 +21,21 @@ class DocumentRegistration:
 
         try:
             key = self.request.client.host if self.request.client else "unknown"
-            id=uuid4()
+
+            items = []
+            tracking_pairs = []
             
-            # build full items
-            items = [
-                {
-                    "prefix": DOC_METADATA_PREFIX + doc.document_name + "_" + self.now + "_" + str(id),
-                    "data": {field.field: str(field.is_required) for field in doc.fields},
-                }
-                for doc in documents
-            ]
+            for doc in documents:
+                doc_id = str(uuid4())
+                redis_prefix = f"{DOC_METADATA_PREFIX}_{doc_id}"
+            
+            
+                items.append({
+                    "prefix": redis_prefix,
+                    "data": {field.field: field.is_required for field in doc.fields},
+                })
+                
+                tracking_pairs.append((doc_id, doc))
             
             # store in cache in one call
             success = await self.redis_service.set_hash_many(
@@ -44,7 +47,7 @@ class DocumentRegistration:
             return [
                 DocumentRegistrationResponse(
                     document_metadata=DocumentMetadata(
-                        id=id,
+                        id=doc_id,
                         document_name=doc.document_name,
                         fields=doc.fields
                     ),
@@ -59,7 +62,7 @@ class DocumentRegistration:
                         failure_count=0 if success else len(documents),
                     )
                 )
-                for doc in documents
+                for doc_id, doc in tracking_pairs
             ]
 
         except Exception as e:
@@ -70,12 +73,14 @@ class DocumentRegistration:
             )
             
             
-    async def call_agent_for_extract_schema(self, files: list[UploadFile] = File(...)) -> list[AgentExtractedDocumentMetadata]:
-        logger.info(f"[LOG] Start agent to extract schemas from the files. \n Files count: {len(files)}")
+    async def call_agent_for_extract_schema(
+        self, documents: list[UploadFile] = File(...)
+    ) -> list[AgentExtractedDocumentMetadata]:
+        logger.info(f"[LOG] Start agent to extract schemas from the documents. \n documents count: {len(documents)}")
         try:
             """
             1. System provides unique uuid4() for each file
-            2. If passed files len >= 8 or 8+ pdf pages or 10mb+ file size, call orchestrator to divide the labour.
+            2. If passed documents len >= 8 or 8+ pdf pages or 10mb+ file size, call orchestrator to divide the labour.
             3. Call agent worker to extract document schemas.
                 responsibilities:
                 - worker receives passed file metadata to help extraction accuracy
@@ -138,9 +143,9 @@ class DocumentRegistration:
                 
                 return model (per file): list[AgentExtractedDocumentMetadata]
             """
-            # files len >= 8 or 8+ pdf pages or 10mb+ file size, call orchestrator
-            if len(files) >= 8:
-                logger.info(f"[LOG] Upload quantity exceeds to 7: {len(files)}")
+            # documents len >= 8 or 8+ pdf pages or 10mb+ file size, call orchestrator
+            if len(documents) >= 8:
+                logger.info(f"[LOG] Upload quantity exceeds to 7: {len(documents)}")
                    
             
             
