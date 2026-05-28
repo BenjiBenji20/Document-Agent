@@ -95,7 +95,7 @@ class GCSService:
         Returns the correct file reference depending on the model provider.
         """
         model_provider = model_provider.strip().lower()
-        if model_provider == "gemini":
+        if model_provider == "google":
             return f"gs://{settings.GCS_BUCKET_NAME}/{object_key}"
         else:
             return self.generate_signed_download_url(object_key)
@@ -118,6 +118,13 @@ class GCSService:
         return None
     
     
+    def download_object_as_bytes(self, object_key: str) -> bytes:
+        """
+        Downloads an object from GCS as bytes.
+        """
+        blob = self._bucket.blob(object_key)
+        return blob.download_as_bytes()
+        
     def get_gcs_storage_path(self, file_id: str) -> str:
         return f"api/public/upload/{file_id}"
         
