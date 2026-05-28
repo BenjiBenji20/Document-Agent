@@ -142,14 +142,14 @@ def test_get_object_metadata_negative_path_not_found(gcs_svc, mock_gcs_client):
 # Helpers & Edge Cases
 # ==========================================
 
-def test_get_model_file_uri_edge_case_gemini(gcs_svc, monkeypatch):
+def test_get_model_file_uri_edge_case_google(gcs_svc, monkeypatch):
     # Arrange
     monkeypatch.setattr(settings, "GCS_BUCKET_NAME", "my-app-bucket")
     
     # Act
-    # Test permutations of "gemini" (case-insensitive/whitespace)
-    uri1 = gcs_svc._get_model_file_uri("file1.pdf", "Gemini")
-    uri2 = gcs_svc._get_model_file_uri("file2.pdf", " gemini ")
+    # Test permutations of "google" (case-insensitive/whitespace)
+    uri1 = gcs_svc._get_model_file_uri("file1.pdf", "Google")
+    uri2 = gcs_svc._get_model_file_uri("file2.pdf", " google ")
     
     # Assert
     assert uri1 == "gs://my-app-bucket/file1.pdf"
@@ -205,3 +205,17 @@ def test_get_gcs_storage_path(gcs_svc):
     
     # Assert
     assert path == "api/public/upload/uuid-1234"
+
+def test_download_object_as_bytes_happy_path(gcs_svc, mock_gcs_client):
+    # Arrange
+    mock_blob = MagicMock()
+    mock_blob.download_as_bytes.return_value = b"test content bytes"
+    mock_gcs_client.bucket.return_value.blob.return_value = mock_blob
+    
+    # Act
+    content = gcs_svc.download_object_as_bytes("path/to/object")
+    
+    # Assert
+    assert content == b"test content bytes"
+    mock_gcs_client.bucket.return_value.blob.assert_called_once_with("path/to/object")
+    mock_blob.download_as_bytes.assert_called_once()

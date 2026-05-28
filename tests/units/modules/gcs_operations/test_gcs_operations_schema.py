@@ -4,7 +4,7 @@ from pydantic import ValidationError
 from uuid import uuid4
 
 # =====================================
-# HAPPY TEST PATH UploadFileMetadata model
+# HAPPY TEST PATH GCSUploadFileMetadata model
 # =====================================
 @pytest.mark.parametrize("valid_data", [
     {
@@ -22,7 +22,7 @@ from uuid import uuid4
     }
 ])
 def test_happy_upload_file_metadata(valid_data: list):
-    model = UploadFileMetadata(**valid_data)
+    model = GCSUploadFileMetadata(**valid_data)
     assert model.file_name == valid_data["file_name"]
     assert model.file_type == valid_data["file_type"]
     assert model.file_size == valid_data["file_size"]
@@ -82,7 +82,7 @@ def test_happy_upload_file_metadata(valid_data: list):
 ])
 def test_negative_upload_file_metadata(invalid_data, error_snippet):
     with pytest.raises(ValidationError) as excinfo:
-        UploadFileMetadata(**invalid_data)
+        GCSUploadFileMetadata(**invalid_data)
     
     # Verify the error message contains the snippet we expect
     assert error_snippet in str(excinfo.value)
