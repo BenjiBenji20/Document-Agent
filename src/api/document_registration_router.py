@@ -1,8 +1,8 @@
-from fastapi import APIRouter, Depends, File, HTTPException, Request, status
-from pydantic import ValidationError
-from src.modules.gcs_operations.schema import UploadFileMetadata
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from src.agents.schemas.agent_extract_schemas import AgentExtractedSchemaResponse
+from src.modules.gcs_operations.direct_gcs_operations_schema import GCSFileObjectMetadata
 from src.modules.fields_registration.document_registration_service import DocumentRegistration
-from src.modules.fields_registration.schema import *
+from src.modules.fields_registration.document_registration_schema import *
 from src.dependencies.secrets import document_agent_secret
 from src.dependencies.rate_limit import rate_limit_by_ip
 from src.cache.redis_cache import redis_service
@@ -44,8 +44,8 @@ async def register_documents(
     
 
 @router.post(
-    "agent-extracts",
-    response_model=list[AgentExtractedDocumentMetadata],
+    "/agent-extracts",
+    response_model=list[AgentExtractedSchemaResponse],
     summary="Generate GCS signed upload URLs for multiple files at once. Agents extracts fields",
     description="User upload files and multiple agents concurrently extracts meaningful fields use for encoding.",
     dependencies=[
@@ -55,11 +55,12 @@ async def register_documents(
 )
 async def agent_extract_schemas(
     request: Request,
-    files: list[UploadFileMetadata]
+    files: list[GCSFileObjectMetadata]
 ):
     """
     agent extract schemas and suggest if required/nullable
-    client direct upload to GCS using Signed URL
+    
+    This endpoint would be call after the client directly uploaded to GCS using Signed URL
     """
     if len(files) < 1:
         raise HTTPException(
@@ -68,5 +69,4 @@ async def agent_extract_schemas(
         )
         
     service = DocumentRegistration(redis_service, request)
-    
-    
+    return await service.call_agent_to_extract_schema(files)

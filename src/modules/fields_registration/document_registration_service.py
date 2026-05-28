@@ -1,11 +1,17 @@
+import asyncio
 import logging
 from uuid import uuid4
 
-from fastapi import File, HTTPException, Request, UploadFile, status
+from fastapi import HTTPException, Request, status
 
-from src.agents.schemas.agent_schemas import AgentExtractedDocumentMetadata
+from src.modules.gcs_operations.direct_gcs_operations_service import DirectGCSOperationsService
+from src.modules.gcs_operations.direct_gcs_operations_schema import  GCSFileObjectMetadata
+from src.agents.schemas.agent_extract_schemas import AgentExtractedSchemaResponse
 from src.cache.redis_cache import RedisService, DOC_METADATA_PREFIX, DOC_METADATA_TTL
 from src.modules.fields_registration.document_registration_schema import *
+from src.agents.orchestrate_agent_call import OrchestrateAgentCall
+from src.infrastructure.gcs_service import gcs_service
+from src.core.settings import settings
 
 logger = logging.getLogger(__name__)
 
@@ -13,6 +19,9 @@ class DocumentRegistration:
     def __init__(self, redis_service: RedisService, request: Request):
         self.redis_service = redis_service
         self.request = request
+        self.direct_gcs_operations = DirectGCSOperationsService()
+        self.agent = OrchestrateAgentCall().select_provider(settings.AGENT_PROVIDER)
+        
     
     async def save_document_metadata(
         self,
@@ -75,9 +84,9 @@ class DocumentRegistration:
             
             
     async def call_agent_to_extract_schema(
-        self, documents: list[UploadFile] = File(...)
-    ) -> list[AgentExtractedDocumentMetadata]:
-        logger.info(f"[LOG] Start agent to extract schemas from the documents. \n documents count: {len(documents)}")
+        self, files_metadata: list[GCSFileObjectMetadata]
+    ) -> list[AgentExtractedSchemaResponse]:
+        logger.info(f"[LOG] Start agent to extract schemas from the documents. \n documents count: {len(files_metadata)}")
         try:
             """
             1. System provides unique uuid4() for each file
@@ -144,11 +153,62 @@ class DocumentRegistration:
                 
                 return model (per file): list[AgentExtractedDocumentMetadata]
             """
-            # documents len >= 8 or 8+ pdf pages or 10mb+ file size, call orchestrator
-            if len(documents) >= 8:
-                logger.info(f"[LOG] Upload quantity exceeds to 7: {len(documents)}")
-                   
             
+            if len(files_metadata) < 1:
+                logger.error(f"[DEBUG] No files uploaded.")
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"No files uploaded: {len(files_metadata)}"
+                )
+            
+            # documents len >= 8 or 8+ pdf pages or 10mb+ file size, call orchestrator
+            if len(files_metadata) >= 8:
+                logger.info(f"[LOG] Upload quantity exceeds to 7: {len(files_metadata)}")
+                   
+            agent_workload_payloads = []
+            
+            # collect files metadata
+            uploaded_files_path = [
+                gcs_service.get_gcs_storage_path(metadata.id)
+                for metadata in files_metadata
+            ]
+            
+            # check GCS file upload existence checks in parallel
+            logger.info("[LOG] Checking files in gcs...")
+            async def check_gcs_file_existance(file_path_url: str):
+                return await asyncio.to_thread(
+                    gcs_service.get_object_metadata,
+                    file_path_url
+                )
+            
+            # Parallel GCS existence checks for all uploaded files
+            uploaded_files = await asyncio.gather(
+                *[check_gcs_file_existance(file_path) for file_path in uploaded_files_path],
+                return_exceptions=True
+            )
+            
+            logger.info(f"[LOG] Successfull uploaded files: {len(uploaded_files)}")
+            
+            for metadata, file_path in zip(files_metadata, uploaded_files_path):
+                gcs_url = gcs_service._get_model_file_uri(
+                    object_key=file_path, model_provider=settings.AGENT_PROVIDER
+                )
+                
+                # This dictionary contains everything needed by both:
+                # - WorkloadManager (gcs_url, page_count, size_bytes)
+                # - Agents worker method (id, file_name)
+                agent_workload_payloads.append({
+                    "gcs_url": gcs_url,
+                    "id": metadata.id,
+                    "file_name": metadata.file_name,
+                    "file_type": metadata.file_type,
+                    "page_count": getattr(metadata, "page_count", 0),  # passed from client metadata
+                    "size_bytes": getattr(metadata, "size_bytes", 0),  # passed from client metadata
+                })
+                   
+            extracted_schemas = await self.agent.extract_schemas(agent_workload_payloads)
+            
+            return extracted_schemas
             
         except Exception as e:
             logger.error(f"[ERROR] Agent failed to extract document metadata: {e}")
