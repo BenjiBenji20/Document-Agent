@@ -24,6 +24,9 @@ class Settings(BaseSettings):
     
     GCS_BUCKET_NAME: str | None = None
     GCS_SIGNED_URL_EXPIRATION: int | None = None
+    
+    AGENT_API_KEY: str | None = None
+    AGENT_PROVIDER: str = "google"
 
     model_config = SettingsConfigDict(
         env_file=".env",
