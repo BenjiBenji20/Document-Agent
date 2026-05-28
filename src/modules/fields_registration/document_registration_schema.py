@@ -16,8 +16,7 @@ class DocumentFields(BaseModel):
         ...,
         min_length=1,
         max_length=30, # Cap field count — protects agent prompt size
-        description="Field to extract in the document",
-        examples=["first_name"],
+        description="Field to extract in the document. eg.: first_name",
     )
         
     model_config = ConfigDict(frozen=True)
@@ -28,15 +27,13 @@ class DocumentRegistrationRequest(BaseModel):
         ...,
         min_length=1,
         max_length=100,
-        description="Document type name",
-        examples=["National ID", "Driver's License"],
+        description="Document type name. eg.: National ID, Drivers License",
     )
     fields: Annotated[list[DocumentFields], Field(
         ...,
         min_length=1,
         max_length=30,
-        description="Dynamic fields to extract in the documents.",
-        examples=[["first_name", "last_name", "date-of-birth"]],
+        description="Dynamic fields to extract in the documents. eg.: [first_name, last_name, date-of-birth]",
     )]
     honeypot: Honeypot = Field(
         default=None,
@@ -63,8 +60,7 @@ class DocumentRegistrationRequest(BaseModel):
 class ResponseDetails(BaseModel):
     description: str | None = Field(
         default=None,
-        description="Response details",
-        examples=["Registration successful", "Registration failed"]
+        description="Response details. eg: Registration successful, Registration failed",
     )
     successful: bool = Field(
         default=False,
@@ -87,8 +83,7 @@ class DocumentMetadata(BaseModel):
     )
     document_name: str = Field(
         ...,
-        description="Batch documents name",
-        examples=["National ID"]
+        description="Batch documents name. eg: National ID",
     ) # 1 name per batch
     fields: Annotated[list[DocumentFields], Field(
         min_length=1, 
