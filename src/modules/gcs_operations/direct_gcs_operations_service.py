@@ -79,23 +79,22 @@ class DirectGCSOperationsService:
                 gcs_service.generate_signed_download_url,
                 storage_path
             )
-            
-            if not download_url:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail=f"No files to download found using this GCS storage path: {storage_path}"
-                )
-                
-            return GCSDownloadURLResponse(
-                id=file_id,
-                storage_path=storage_path,
-                expires_in_seconds=settings.GCS_SIGNED_URL_EXPIRATION
-            )
-            
         except Exception:
             logger.critical("[CRITICAL] SERVER ERROR...")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Server error while uploading file."
             )
+            
+        if not download_url:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"No files to download found using this GCS storage path: {storage_path}"
+            )
+            
+        return GCSDownloadURLResponse(
+            id=file_id,
+            storage_path=storage_path,
+            expires_in_seconds=settings.GCS_SIGNED_URL_EXPIRATION
+        )
         
