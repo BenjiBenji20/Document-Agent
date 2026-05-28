@@ -16,8 +16,8 @@ class GeminiAgents(BaseAgent):
         
         self.client = genai.Client(api_key=settings.AGENT_API_KEY)
         # one client call for multiple agents
-        self.orchestrator_model = "gemini-2.5-flash"
-        self.worker_model = "gemini-2.5-flash-lite"
+        self.orchestrator_model = "gemini-2.5-pro"
+        self.worker_model = "gemini-2.5-flash"
         self.validator_model = "gemini-2.5-pro"
         
     async def extract_single_document_schema(self, metadata: dict) -> dict:
