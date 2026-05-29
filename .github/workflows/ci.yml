@@ -10,6 +10,8 @@ jobs:
     test:
         runs-on: ubuntu-latest
 
+        environment: production
+
         # Global environment variables for all steps in this job
         env:
           APP_NAME: ${{ secrets.APP_NAME }}
