@@ -40,19 +40,22 @@ def test_document_fields_defaults():
 # =====================================
 @pytest.mark.parametrize("input_data", [
     # Case 1: Standard valid data
-    {
+    {   
+        "id": "c1a938c4-11e2-411a-8217-09eb12f5b5f2",
         "document_name": "Barangay Clearance",
         "fields": [{"field": "pangalan"}, {"field": "apelyido"}, {"field": "edad"}],
         "honeypot": None
     },
     # Case 2: Test minimum lengths (1 char name, 1 field)
     {
+        "id": "c1a938c4-11e2-411a-8217-09eb12f5b5f2",
         "document_name": "i",
         "fields": [{"field": "i"}],
         "honeypot": ""  # Honeypot accepts None or empty string
     },
     # Case 3: Test maximum boundaries (100 char name, 30 fields)
     {
+        "id": "c1a938c4-11e2-411a-8217-09eb12f5b5f2",
         "document_name": "i" * 100,
         "fields": [{"field": f"field-{n}"} for n in range(30)],
         "honeypot": None
@@ -64,6 +67,7 @@ def test_happy_document_registration_request_validation(input_data):
     
     # Assert - Document Name
     assert model.document_name == input_data["document_name"]
+    assert str(model.id) == input_data["id"]
     
     # Assert - Fields (Check length and specific values)
     assert len(model.fields) == len(input_data["fields"])

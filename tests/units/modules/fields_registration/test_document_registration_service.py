@@ -12,8 +12,10 @@ def mock_request():
 
 @pytest.fixture
 def valid_documents():
+    from uuid import uuid4
     return [
         DocumentRegistrationRequest(
+            id=uuid4(),
             document_name="Test Document",
             fields=[DocumentFields(field="test_field", is_required=True)]
         )
@@ -133,3 +135,45 @@ async def test_call_agent_to_extract_schema_exception_handling(mock_redis, mock_
         
     assert any("event: error" in e for e in events)
     assert any("Storage error" in e for e in events)
+
+
+@pytest.mark.asyncio
+async def test_save_document_metadata_is_schema_extracted_false(mock_redis, mock_request):
+    from uuid import UUID
+    # Arrange: Document has id=None (e.g. from manual user registration request)
+    doc_no_id = [
+        DocumentRegistrationRequest(
+            document_name="Manual Register",
+            fields=[DocumentFields(field="test_field", is_required=True)]
+        )
+    ]
+    service = DocumentRegistration(mock_redis, request=mock_request)
+    mock_redis.set_hash_many.return_value = True
+
+    # Act: call with is_schema_extracted=False
+    responses = await service.save_document_metadata(documents=doc_no_id, is_schema_extracted=False)
+
+    # Assert: verify a new UUID was generated
+    assert len(responses) == 1
+    response = responses[0]
+    assert response.document_metadata.id is not None
+    assert isinstance(response.document_metadata.id, UUID)
+
+
+@pytest.mark.asyncio
+async def test_save_document_metadata_is_schema_extracted_true_missing_id(mock_redis, mock_request):
+    # Arrange: Document has id=None (e.g. from manual user registration request)
+    doc_no_id = [
+        DocumentRegistrationRequest(
+            document_name="Manual Register",
+            fields=[DocumentFields(field="test_field", is_required=True)]
+        )
+    ]
+    service = DocumentRegistration(mock_redis, request=mock_request)
+
+    # Act & Assert: should raise 400 HTTPException
+    with pytest.raises(HTTPException) as exc_info:
+        await service.save_document_metadata(documents=doc_no_id, is_schema_extracted=True)
+
+    assert exc_info.value.status_code == status.HTTP_400_BAD_REQUEST
+    assert "Document ID is required" in exc_info.value.detail

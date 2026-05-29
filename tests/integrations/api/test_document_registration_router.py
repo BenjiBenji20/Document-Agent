@@ -32,7 +32,7 @@ def test_registration_router_happy_path(client, mock_redis):
     ]
 
     # Act
-    response = client.post("/api/public/document/registration", json=payload)
+    response = client.post("/api/public/document/registration/false", json=payload)
 
     # Assert
     assert response.status_code == 201
@@ -55,7 +55,7 @@ def test_registration_router_negative_path_invalid_payload(client, mock_redis):
     ]
 
     # Act
-    response = client.post("/api/public/document/registration", json=invalid_payload)
+    response = client.post("/api/public/document/registration/false", json=invalid_payload)
 
     # Assert
     assert response.status_code == 422
@@ -78,7 +78,7 @@ def test_registration_router_negative_path_internal_error(client, mock_redis):
     ]
 
     # Act
-    response = client.post("/api/public/document/registration", json=payload)
+    response = client.post("/api/public/document/registration/false", json=payload)
 
     # Assert
     assert response.status_code == 500
@@ -126,3 +126,49 @@ def test_agent_extract_schemas_integration_negative_empty(client, mock_redis):
     # Assert
     assert response.status_code == 400
     assert response.json()["detail"] == "No files found."
+
+
+def test_registration_router_happy_path_is_schema_extracted_true(client, mock_redis):
+    # Arrange
+    mock_redis.set_hash_many.return_value = True
+    payload = [
+        {
+            "id": "c1a938c4-11e2-411a-8217-09eb12f5b5f2",
+            "document_name": "National ID",
+            "fields": [
+                {"field": "first_name", "is_required": True}
+            ]
+        }
+    ]
+
+    # Act
+    response = client.post("/api/public/document/registration/true", json=payload)
+
+    # Assert
+    assert response.status_code == 201
+    data = response.json()
+    assert len(data) == 1
+    doc_response = data[0]
+    assert doc_response["details"]["successful"] is True
+    assert doc_response["document_metadata"]["id"] == "c1a938c4-11e2-411a-8217-09eb12f5b5f2"
+    assert doc_response["document_metadata"]["document_name"] == "National ID"
+
+
+def test_registration_router_negative_path_missing_id_when_is_schema_extracted_true(client, mock_redis):
+    # Arrange
+    payload = [
+        {
+            # 'id' is omitted, meaning it defaults to None
+            "document_name": "National ID",
+            "fields": [
+                {"field": "first_name", "is_required": True}
+            ]
+        }
+    ]
+
+    # Act
+    response = client.post("/api/public/document/registration/true", json=payload)
+
+    # Assert
+    assert response.status_code == 400
+    assert "Document ID is required" in response.json()["detail"]
