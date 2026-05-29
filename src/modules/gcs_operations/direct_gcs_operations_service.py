@@ -1,0 +1,100 @@
+import asyncio
+from uuid import uuid4
+
+from fastapi import HTTPException, status
+
+from src.core.settings import settings
+from src.infrastructure.gcs_service import gcs_service
+from src.modules.gcs_operations.direct_gcs_operations_schema import *
+import logging
+
+logger = logging.getLogger(__name__)
+
+class DirectGCSOperationsService:
+    def __init__(self):
+        pass
+    
+    async def bulk_generate_gcs_upload_urls(
+        self, files: list[GCSUploadFileMetadata]
+    ) -> list[GCSUploadURLResponse]:
+        logger.info("[LOG] Generating URLs for direct GCS upload...")
+
+        # validate object len
+        if len(files) < 1:
+            logger.error(f"[ERROR] Triggered this service but no actual files metadata found.")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No files found...",
+            )
+        
+        try:
+            results: list[GCSUploadURLResponse] = []
+            
+            for file in files:
+                id = str(uuid4())
+                storage_path = gcs_service.get_gcs_storage_path(
+                    file_id=id
+                )
+            
+                logger.info(f"[LOG] Generating GCS signed URI for file {file.file_name}")
+                upload_url = await asyncio.to_thread(
+                    gcs_service.generate_signed_upload_url,
+                    storage_path,
+                    file.file_type
+                )
+
+                results.append(
+                    GCSUploadURLResponse(
+                        id=id,
+                        upload_url=upload_url,
+                        storage_path=storage_path,
+                        expires_in_seconds=settings.GCS_SIGNED_URL_EXPIRATION
+                    )
+                )
+            
+            logger.info(f"[LOG] Returning list of GCS signed URI.")
+            return results
+        
+        except Exception:
+            logger.critical("[CRITICAL] SERVER ERROR...")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Server error while uploading file."
+            )
+    
+    
+    async def generate_gcs_download_url(
+        self, 
+        file_id: str, 
+    ) -> GCSDownloadURLResponse:
+        """Method use by model to download the file directly from GCS."""
+        logger.info("[LOG] Generating URLs for direct GCS download to file...")
+        
+        try:
+            storage_path = gcs_service.get_gcs_storage_path(
+                file_id=file_id
+            )
+            
+            download_url = await asyncio.to_thread(
+                gcs_service.generate_signed_download_url,
+                storage_path
+            )
+        except Exception:
+            logger.critical("[CRITICAL] SERVER ERROR...")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Server error while uploading file."
+            )
+            
+        if not download_url:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"No files to download found using this GCS storage path: {storage_path}"
+            )
+            
+        return GCSDownloadURLResponse(
+            id=file_id,
+            storage_path=storage_path,
+            expires_in_seconds=settings.GCS_SIGNED_URL_EXPIRATION
+        )
+        

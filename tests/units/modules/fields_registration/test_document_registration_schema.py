@@ -3,7 +3,7 @@ from uuid import uuid4
 
 from pydantic import ValidationError
 import pytest
-from src.modules.fields_registration.schema import *
+from src.modules.fields_registration.document_registration_schema import *
 
 # ============================================================
 # HAPPY PATH TESTS - pydantic model
@@ -74,26 +74,29 @@ def test_happy_document_registration_request_validation(input_data):
     # Assert - Honeypot
     assert model.honeypot == input_data["honeypot"]
 
-
-# =====================================
-# TEST FileUpload
-# =====================================
-@pytest.mark.asyncio
-async def test_file_upload_happy_path():
-    # Arrange: Create a mock PDF (PDF magic bytes start with %PDF)
-    mock_file = AsyncMock()
-    mock_file.read.side_effect = [b"%PDF-1.4 header...", b""] # Magic bytes + EOF
-    mock_file.seek = AsyncMock()
+def test_document_registration_request_fields_uniqueness():
+    # Arrange: Create request with duplicate fields (exact match and different flags)
+    input_data = {
+        "document_name": "Unique Check",
+        "fields": [
+            {"field": "first_name", "is_required": True},
+            {"field": "last_name", "is_required": True},
+            {"field": "first_name", "is_required": False}, # Duplicate name!
+            {"field": "age", "is_required": False},
+            {"field": "last_name", "is_required": False}   # Duplicate name!
+        ]
+    }
     
     # Act
-    # Note: In Pydantic, async validators are usually triggered by FastAPI.
-    # To test manually, we call the validator directly.
-    validated_file = await FileUpload.validate_file(mock_file)
+    model = DocumentRegistrationRequest(**input_data)
     
     # Assert
-    assert validated_file == mock_file
-    assert mock_file.seek.called
-    
+    assert len(model.fields) == 3
+    assert model.fields[0].field == "first_name"
+    assert model.fields[0].is_required is True # Took the first one
+    assert model.fields[1].field == "last_name"
+    assert model.fields[2].field == "age"
+
 
 # =====================================
 # TEST ResponseDetails
@@ -200,27 +203,6 @@ def test_negative_document_registration_request_validation():
         )
     assert "Automatic request denied" in str(excinfo.value)
     
-    
-# =====================================
-# TEST FileUpload
-# =====================================
-@pytest.mark.asyncio
-async def test_file_upload_negative_paths():
-    # 1. Test Unsupported MIME
-    bad_mime_file = AsyncMock()
-    bad_mime_file.read.return_value = b"<html>This is not a PDF</html>"
-    
-    with pytest.raises(ValueError, match="Unsupported file type"):
-        await FileUpload.validate_file(bad_mime_file)
-
-    # 2. Test Max Size (10MB + 1 byte)
-    oversized_file = AsyncMock()
-    oversized_file.read.side_effect = [b"%PDF-1.4 header..."] + [b"a" * 8192] * 1281 # Exceeds 10MB
-    oversized_file.seek = AsyncMock()
-
-    with pytest.raises(ValueError, match="exceeds the 10MB size limit"):
-        await FileUpload.validate_file(oversized_file)
-        
 
 # =====================================
 # TEST DocumentMetadata & RegistrationResponse

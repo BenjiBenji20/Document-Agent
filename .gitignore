@@ -1,4 +1,9 @@
 src/test_code/
+<<<<<<< HEAD
+=======
+secrets/
+scratch/
+>>>>>>> feat/agent-extract-schema
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

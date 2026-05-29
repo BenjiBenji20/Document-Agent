@@ -1,11 +1,12 @@
 from typing import Annotated
 from uuid import UUID
 
-import magic  # python-magic
-from fastapi import UploadFile
 from pydantic import BaseModel, field_validator, ConfigDict, Field
 from src.utils.validators import SafeLabel, FieldName, Honeypot
 
+# =====================
+# MANUAL FEATURE MODELS
+# =====================
 class DocumentFields(BaseModel):
     is_required: bool = Field(
         default=False,
@@ -15,9 +16,10 @@ class DocumentFields(BaseModel):
         ...,
         min_length=1,
         max_length=30, # Cap field count — protects agent prompt size
-        description="Field to extract in the document",
-        examples=["first_name"],
+        description="Field to extract in the document. eg.: first_name",
     )
+        
+    model_config = ConfigDict(frozen=True)
     
 
 class DocumentRegistrationRequest(BaseModel):
@@ -25,61 +27,30 @@ class DocumentRegistrationRequest(BaseModel):
         ...,
         min_length=1,
         max_length=100,
-        description="Document type name",
-        examples=["National ID", "Driver's License"],
+        description="Document type name. eg.: National ID, Drivers License",
     )
     fields: Annotated[list[DocumentFields], Field(
         ...,
         min_length=1,
         max_length=30,
-        description="Dynamic fields to extract in the documents.",
-        examples=[["first_name", "last_name", "date-of-birth"]],
+        description="Dynamic fields to extract in the documents. eg.: [first_name, last_name, date-of-birth]",
     )]
     honeypot: Honeypot = Field(
         default=None,
         exclude=True, # Never surfaces in serialized output / logs
         description="Anti-bot trap. Must be empty.",
     )
-    
 
-ALLOWED_MIME_TYPES = {
-    "application/pdf",
-    "image/png",
-    "image/jpeg",  # covers both jpg and jpeg
-}
-
-MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
-
-class FileUpload(BaseModel):
-    model_config = ConfigDict(arbitrary_types_allowed=True)
-
-    file: UploadFile
-
-    @field_validator("file")
+    @field_validator("fields")
     @classmethod
-    async def validate_file(cls, file: UploadFile) -> UploadFile:
-        # Read a small header chunk — enough for magic byte detection
-        header = await file.read(2048)
-        
-        # Detect MIME from actual bytes, not the filename or Content-Type header
-        detected_mime = magic.from_buffer(header, mime=True)
-        if detected_mime not in ALLOWED_MIME_TYPES:
-            raise ValueError(
-                f"Unsupported file type '{detected_mime}'. "
-                f"Allowed: pdf, png, jpg, jpeg."
-            )
-
-        # Check file size without loading the whole file into memory
-        await file.seek(0)
-        size = 0
-        while chunk := await file.read(8192):
-            size += len(chunk)
-            if size > MAX_FILE_SIZE:
-                raise ValueError("File exceeds the 10MB size limit.")
-
-        # Reset cursor so the endpoint can read the file normally after validation
-        await file.seek(0)
-        return file
+    def validate_fields_entry_uniqueness(cls, fields: list[DocumentFields]):
+        seen = set()
+        unique_fields = []
+        for f in fields:
+            if f.field not in seen:
+                seen.add(f.field)
+                unique_fields.append(f)
+        return unique_fields
     
     
 # ==============================+
@@ -89,8 +60,7 @@ class FileUpload(BaseModel):
 class ResponseDetails(BaseModel):
     description: str | None = Field(
         default=None,
-        description="Response details",
-        examples=["Registration successful", "Registration failed"]
+        description="Response details. eg: Registration successful, Registration failed",
     )
     successful: bool = Field(
         default=False,
@@ -113,8 +83,7 @@ class DocumentMetadata(BaseModel):
     )
     document_name: str = Field(
         ...,
-        description="Batch documents name",
-        examples=["National ID"]
+        description="Batch documents name. eg: National ID",
     ) # 1 name per batch
     fields: Annotated[list[DocumentFields], Field(
         min_length=1, 
@@ -126,4 +95,3 @@ class DocumentMetadata(BaseModel):
 class DocumentRegistrationResponse(BaseModel):
     document_metadata: DocumentMetadata
     details: ResponseDetails
-    
