@@ -3,6 +3,8 @@ import logging
 from uuid import uuid4
 
 from fastapi import HTTPException, Request, status
+import typing
+import json
 
 from src.modules.gcs_operations.direct_gcs_operations_service import DirectGCSOperationsService
 from src.modules.gcs_operations.direct_gcs_operations_schema import  GCSFileObjectMetadata
@@ -85,86 +87,23 @@ class DocumentRegistration:
             
     async def call_agent_to_extract_schema(
         self, files_metadata: list[GCSFileObjectMetadata]
-    ) -> list[AgentExtractedSchemaResponse]:
+    ) -> typing.AsyncGenerator[str, None]:
         logger.info(f"[LOG] Start agent to extract schemas from the documents. \n documents count: {len(files_metadata)}")
-        try:
-            """
-            1. System provides unique uuid4() for each file
-            2. If passed documents len >= 8 or 8+ pdf pages or 10mb+ file size, call orchestrator to divide the labour.
-            3. Call agent worker to extract document schemas.
-                responsibilities:
-                - worker receives passed file metadata to help extraction accuracy
-                - extract document name eg. National ID (become document type)
-                - extract document schemas under the document name eg. first_name, last_name,...
-                - decide whether extracted schema is nullable or required
-                - sends extraction confidence score to the validator # to decide
-                
-                constraints:
-                - focus strictly on visual
-                - no duplicate document type eg. User passed 2 identical documents, agents MUST identify them as one
-                - standardize field names into snake_case
-                - process in parallel
-                
-                return model (per file):
-                [
-                    {
-                        "id": uuid4(), # provided by system
-                        "document_name": "national id",
-                        "file_name": "my-national-id.jpg",
-                        "confidence_score": 0.92,
-                        "fields": [
-                            {"field": "first_name", "is_required": True},
-                            {"field": "last_name", "is_required": True},...
-                        ]
-                    },...
-                ]
-            4. System validate document_name uniqueness to lessen validator call.
-                - Flag: this file and this file has identical metadata (extracted by worker)
-                - Use System-Level "Fuzzy" Grouping
-                - groups the file with conflicting document metadata
-                
-                Example Case 1: Naming Inconsistency
-                    File A: document_name: "National ID", fields: ["first_name", "last_name", "dob"]
-                    File B: document_name: "Philsys ID", fields: ["first_name", "last_name", "dob"]
+        
+        def format_sse(data: dict, event: str = "message") -> str:
+            return f"event: {event}\ndata: {json.dumps(data)}\n\n"
 
-                    Logic: Even though the names differ, the field set is a 100% match. The system should group these together because they represent the same data structure.
-                
-                return model:
-                [
-                    {
-                        "reason": "Fields are identical but different document_name.",
-                        "candidates": [
-                            {"id": "uuid_A", "document_name": "National ID", "confidence": 0.95},
-                            {"id": "uuid_B", "document_name": "Philsys ID", "confidence": 0.88}
-                        ]
-                    },... # is this enough?
-                ]
-            5. Call agent validator to examine extracted schemas by the worker.
-                responsibilities:
-                - receives separately the cleaned and uncleaned grouped of documents
-                - validator only does meaningful work on conflicting group of documents and else bypass  
-                - analyze identical document metadata
-                - decides which document type to use based on newest format and industry standard
-                - validate and correct the extracted schemas from document type
-                
-                - validator returns only unique document type eg. national id, psa, etc...
-                - validator returns only unique schemas under document_name eg. first_name, last_name, etc...
-                - sends final confidence score to client 
-                
-                return model (per file): list[AgentExtractedDocumentMetadata]
-            """
+        try:
+            yield format_sse({"status": "Counting documents..."})            
             
             if len(files_metadata) < 1:
                 logger.error(f"[DEBUG] No files uploaded.")
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"No files uploaded: {len(files_metadata)}"
-                )
+                yield format_sse({"error": "No files uploaded."}, event="error")
+                return
             
-            # documents len >= 8 or 8+ pdf pages or 10mb+ file size, call orchestrator
-            if len(files_metadata) >= 8:
-                logger.info(f"[LOG] Upload quantity exceeds to 7: {len(files_metadata)}")
-                   
+            doc_count = len(files_metadata)
+            yield format_sse({"status": f"Ok, the total the document{"s are " if doc_count > 1 else " is "}{doc_count}"})
+            
             agent_workload_payloads = []
             
             # collect files metadata
@@ -175,6 +114,7 @@ class DocumentRegistration:
             
             # check GCS file upload existence checks in parallel
             logger.info("[LOG] Checking files in gcs...")
+            yield format_sse({"status": "Checking uploaded files in storage..."})
             async def check_gcs_file_existance(file_path_url: str):
                 return await asyncio.to_thread(
                     gcs_service.get_object_metadata,
@@ -188,7 +128,7 @@ class DocumentRegistration:
             )
             
             logger.info(f"[LOG] Successfull uploaded files: {len(uploaded_files)}")
-            
+            yield format_sse({"status": "Successfully collected uploaded files..."})
             for metadata, file_path in zip(files_metadata, uploaded_files_path):
                 gcs_url = gcs_service._get_model_file_uri(
                     object_key=file_path, model_provider=settings.AGENT_PROVIDER
@@ -205,14 +145,26 @@ class DocumentRegistration:
                     "page_count": getattr(metadata, "page_count", 0),  # passed from client metadata
                     "size_bytes": getattr(metadata, "size_bytes", 0),  # passed from client metadata
                 })
-                   
-            extracted_schemas = await self.agent.extract_schemas(agent_workload_payloads)
             
-            return extracted_schemas
+            yield format_sse({"status": f"We are beginning extract fields from these files: {len(agent_workload_payloads)}..."})   
+            
+            all_results = []
+            async for event in self.agent.extract_schemas_stream(agent_workload_payloads):
+                if "status" in event:
+                    yield format_sse({"status": event["status"]}, event="status")
+                elif "result" in event:
+                    res = event["result"]
+                    all_results.append(res)
+                    yield format_sse(res, event="result")
+            
+            yield format_sse({
+                "status": "completed",
+                "results": all_results
+            }, event="complete")
             
         except Exception as e:
             logger.error(f"[ERROR] Agent failed to extract document metadata: {e}")
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Agent failed to extract document metadata."
-            )
+            yield format_sse({
+                "error": "Agent failed to extract document metadata.",
+                "details": str(e)
+            }, event="error")

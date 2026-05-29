@@ -6,6 +6,8 @@ from src.modules.fields_registration.document_registration_schema import *
 from src.dependencies.secrets import document_agent_secret
 from src.dependencies.rate_limit import rate_limit_by_ip
 from src.cache.redis_cache import redis_service
+import typing
+from fastapi.responses import StreamingResponse
 
 router = APIRouter(
     prefix="/api/public/document",  
@@ -69,4 +71,10 @@ async def agent_extract_schemas(
         )
         
     service = DocumentRegistration(redis_service, request)
-    return await service.call_agent_to_extract_schema(files)
+    response = service.call_agent_to_extract_schema(files)
+    
+    # SSE enabled
+    if isinstance(response, typing.AsyncGenerator):
+        return StreamingResponse(response, media_type="text/event-stream")
+    
+    return response

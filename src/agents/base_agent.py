@@ -1,3 +1,4 @@
+import typing
 from abc import ABC, abstractmethod
 
 
@@ -20,8 +21,12 @@ class BaseAgent(ABC):
         """Call agents and asked to extract schemas from documents through GCS url"""
         pass
     
+    @abstractmethod
+    async def extract_schemas_stream(self, files: list[dict]) -> typing.AsyncGenerator[dict, None]:
+        """Stream schema extraction progress and results."""
+        pass
     
     @abstractmethod
-    async def extract_single_document_schema(self, metadata: dict) -> dict:
-        """Private worker method responsible for a single LLM API transaction."""
+    async def extract_single_document_schema(self, metadata: dict) -> typing.AsyncGenerator[dict, None]:
+        """Private worker method responsible for a single LLM API transaction yielding status and results."""
         pass
