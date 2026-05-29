@@ -70,3 +70,66 @@ async def test_save_document_metadata_negative_path_exception(mock_redis, mock_r
         
     assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
     assert exc_info.value.detail == "Failed to save document metadata."
+
+
+@pytest.mark.asyncio
+async def test_call_agent_to_extract_schema_happy_path(mock_redis, mock_request, mock_base_agent, monkeypatch):
+    from src.modules.gcs_operations.direct_gcs_operations_schema import GCSFileObjectMetadata
+    
+    # Mock GCS Service
+    mock_gcs = MagicMock()
+    mock_gcs.get_gcs_storage_path.return_value = "api/public/upload/test-123"
+    mock_gcs._get_model_file_uri.return_value = "gs://bucket/test-123"
+    mock_gcs.get_object_metadata.return_value = {"size": 100, "content_type": "image/png"}
+    monkeypatch.setattr("src.modules.fields_registration.document_registration_service.gcs_service", mock_gcs)
+    
+    service = DocumentRegistration(mock_redis, request=mock_request)
+    files = [
+        GCSFileObjectMetadata(id="test-123", file_name="doc.png", file_type="image/png", file_size=100)
+    ]
+    
+    events = []
+    async for event in service.call_agent_to_extract_schema(files):
+        events.append(event)
+        
+    assert len(events) > 0
+    # Ensure standard SSE format is met
+    assert any("Counting documents..." in e for e in events)
+    assert any("event: result" in e for e in events)
+    assert any("event: complete" in e for e in events)
+
+
+@pytest.mark.asyncio
+async def test_call_agent_to_extract_schema_empty_input(mock_redis, mock_request, mock_base_agent):
+    service = DocumentRegistration(mock_redis, request=mock_request)
+    
+    events = []
+    async for event in service.call_agent_to_extract_schema([]):
+        events.append(event)
+        
+    assert len(events) == 2
+    assert any("Counting documents..." in e for e in events)
+    assert any("event: error" in e for e in events)
+    assert any("No files uploaded" in e for e in events)
+
+
+@pytest.mark.asyncio
+async def test_call_agent_to_extract_schema_exception_handling(mock_redis, mock_request, mock_base_agent, monkeypatch):
+    from src.modules.gcs_operations.direct_gcs_operations_schema import GCSFileObjectMetadata
+    
+    # Mock GCS Service to raise exception
+    mock_gcs = MagicMock()
+    mock_gcs.get_gcs_storage_path.side_effect = Exception("Storage error")
+    monkeypatch.setattr("src.modules.fields_registration.document_registration_service.gcs_service", mock_gcs)
+    
+    service = DocumentRegistration(mock_redis, request=mock_request)
+    files = [
+        GCSFileObjectMetadata(id="test-123", file_name="doc.png", file_type="image/png", file_size=100)
+    ]
+    
+    events = []
+    async for event in service.call_agent_to_extract_schema(files):
+        events.append(event)
+        
+    assert any("event: error" in e for e in events)
+    assert any("Storage error" in e for e in events)

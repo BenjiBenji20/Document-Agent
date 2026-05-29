@@ -83,3 +83,46 @@ def test_registration_router_negative_path_internal_error(client, mock_redis):
     # Assert
     assert response.status_code == 500
     assert response.json()["detail"] == "Failed to save document metadata."
+
+
+def test_agent_extract_schemas_integration_happy_path(client, mock_redis, mock_base_agent, monkeypatch):
+    # Arrange
+    from unittest.mock import MagicMock
+    mock_gcs = MagicMock()
+    mock_gcs.get_gcs_storage_path.return_value = "api/public/upload/test-uuid"
+    mock_gcs._get_model_file_uri.return_value = "gs://bucket/test-uuid"
+    mock_gcs.get_object_metadata.return_value = {"size": 2048, "content_type": "application/pdf"}
+    monkeypatch.setattr("src.modules.fields_registration.document_registration_service.gcs_service", mock_gcs)
+
+    payload = [
+        {
+            "id": "test-uuid",
+            "file_name": "national_id.pdf",
+            "file_type": "application/pdf",
+            "file_size": 2048
+        }
+    ]
+
+    # Act
+    # We must use client.post with stream=True or read the content directly
+    response = client.post("/api/public/document/agent-extracts", json=payload)
+
+    # Assert
+    assert response.status_code == 200
+    assert "text/event-stream" in response.headers["content-type"]
+    content = response.text
+    assert "Counting documents..." in content
+    assert "event: result" in content
+    assert "event: complete" in content
+
+
+def test_agent_extract_schemas_integration_negative_empty(client, mock_redis):
+    # Arrange
+    payload = []
+
+    # Act
+    response = client.post("/api/public/document/agent-extracts", json=payload)
+
+    # Assert
+    assert response.status_code == 400
+    assert response.json()["detail"] == "No files found."
