@@ -21,7 +21,7 @@ router = APIRouter(
 
 
 @router.post(
-    "/registration",
+    "/registration/{is_schema_extracted}",
     response_model=list[DocumentRegistrationResponse],
     summary="User manually register document schemas",
     status_code=status.HTTP_201_CREATED,
@@ -32,7 +32,8 @@ router = APIRouter(
 )
 async def register_documents(
     request: Request,
-    documents: list[DocumentRegistrationRequest]
+    documents: list[DocumentRegistrationRequest],
+    is_schema_extracted: bool = True
 ):
     """Store document metadata in redis cache with 1 day TTL"""
     if len(documents) < 1:
@@ -42,7 +43,10 @@ async def register_documents(
         )
     
     service = DocumentRegistration(redis_service, request)
-    return await service.save_document_metadata(documents=documents)
+    return await service.save_document_metadata(
+        documents=documents,
+        is_schema_extracted=is_schema_extracted
+    )
     
 
 @router.post(

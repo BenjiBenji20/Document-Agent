@@ -23,6 +23,10 @@ class DocumentFields(BaseModel):
     
 
 class DocumentRegistrationRequest(BaseModel):
+    id: UUID = Field(
+        default=None, # generated at db or service layer (service for now)
+        description="Unique identifier for processed document"
+    )
     document_name: SafeLabel = Field(
         ...,
         min_length=1,

@@ -27,7 +27,8 @@ class DocumentRegistration:
     
     async def save_document_metadata(
         self,
-        documents: list[DocumentRegistrationRequest]
+        documents: list[DocumentRegistrationRequest],
+        is_schema_extracted: bool = True
     ) -> list[DocumentRegistrationResponse]:
         logger.info(f"[LOG] Start to save document metadata. \nDocument types amount: {len(documents)}")
 
@@ -38,10 +39,19 @@ class DocumentRegistration:
             tracking_pairs = []
             
             for doc in documents:
-                doc_id = str(uuid4())
+                doc_id = ""
+                
+                if is_schema_extracted:
+                    if doc.id is None:
+                        raise HTTPException(
+                            status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="Document ID is required when is_schema_extracted is True."
+                        )
+                    doc_id = str(doc.id) # came from agent schema extractioin
+                else:
+                    doc_id = str(uuid4())
+                                    
                 redis_prefix = f"{DOC_METADATA_PREFIX}_{doc_id}"
-            
-            
                 items.append({
                     "prefix": redis_prefix,
                     "data": {field.field: field.is_required for field in doc.fields},
@@ -77,6 +87,8 @@ class DocumentRegistration:
                 for doc_id, doc in tracking_pairs
             ]
 
+        except HTTPException:
+            raise
         except Exception as e:
             logger.error(f"[ERROR] Failed to save document metadata: {e}")
             raise HTTPException(
