@@ -22,6 +22,12 @@ class BaseAgent(ABC):
         
         self.WORKER_EXTRACT_SCHEMA_VALUES_PROMPT = """
         You are the Data Encodent Agent. Extract document schema values present in the document.
+        Provide a max 10 words reason for your confidence_score value. Put in score_reason.
+        
+        Constraints:
+        Use null/None value if document fields aren't match to the file.
+        Throw a low confidence_score value and shortly explain using score_reason.
+        
         Document Metadata:
         """
     
