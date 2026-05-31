@@ -45,3 +45,4 @@ urllib3==2.7.0
 uvicorn==0.46.0
 
 google-genai
+tiktoken
