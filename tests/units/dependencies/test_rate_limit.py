@@ -71,3 +71,33 @@ class TestRateLimitByIp:
         # Should use "Unknown" as the IP key
         call_arg = self.mock_limiter.limit.call_args[0][0]
         assert call_arg.endswith(":Unknown")
+
+
+class TestCheckExtractionRateLimit:
+
+    async def test_extraction_rate_limit_allowed(self, monkeypatch):
+        from src.dependencies.rate_limit import check_extraction_rate_limit
+        from src.cache.redis_cache import redis_service
+        
+        mock_redis_client = AsyncMock()
+        mock_redis_client.eval.return_value = [1, 5]
+        monkeypatch.setattr(redis_service, "_client", mock_redis_client)
+        
+        request = make_request(ip="192.168.1.100")
+        # Should not raise
+        await check_extraction_rate_limit(request, num_docs=5, limit=50)
+        
+    async def test_extraction_rate_limit_exceeded(self, monkeypatch):
+        from src.dependencies.rate_limit import check_extraction_rate_limit
+        from src.cache.redis_cache import redis_service
+        
+        mock_redis_client = AsyncMock()
+        mock_redis_client.eval.return_value = [0, 50]
+        monkeypatch.setattr(redis_service, "_client", mock_redis_client)
+        
+        request = make_request(ip="192.168.1.100")
+        with pytest.raises(HTTPException) as exc:
+            await check_extraction_rate_limit(request, num_docs=5, limit=50)
+            
+        assert exc.value.status_code == 429
+        assert "limit exceeded" in exc.value.detail

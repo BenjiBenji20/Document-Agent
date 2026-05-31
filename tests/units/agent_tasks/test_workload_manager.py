@@ -44,14 +44,19 @@ async def test_workload_manager_process_batch_fast_path():
 
 @pytest.mark.asyncio
 async def test_workload_manager_process_batch_slow_path(monkeypatch):
+    # Mock CHUNK_SIZE and WINDOW_SECONDS to verify chunking rate limit sleeps
+    monkeypatch.setattr(WorkloadManager, "CHUNK_SIZE", 3)
+    monkeypatch.setattr(WorkloadManager, "WINDOW_SECONDS", 1)
+    
     manager = WorkloadManager(worker_fn=dummy_worker)
+    
     # Mock asyncio.sleep to check rate limit bumpers
     sleep_calls = []
     async def mock_sleep(delay):
-        sleep_calls.append(delay)
+        sleep_calls.append(round(delay))
     monkeypatch.setattr(asyncio, "sleep", mock_sleep)
     
-    # 8 files forces slow-path chunking (chunk size 4)
+    # 8 files forces slow-path chunking (3 chunks: 3, 3, 2)
     files = [{"id": f"file-{i}", "page_count": 1, "size_bytes": 100} for i in range(8)]
     
     results = await manager.process_batch(files)

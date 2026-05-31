@@ -15,10 +15,10 @@ async def test_gemini_agents_extract_single_document_schema_happy_path(mock_gemi
         "file_type": "image/png"
     }
     
-    # Mock GCS Service to return dummy bytes
+    # Mock GCS Service
     mock_gcs = MagicMock()
     mock_gcs.get_gcs_storage_path.return_value = "api/public/upload/file-123"
-    mock_gcs.download_object_as_bytes.return_value = b"mock png content"
+    mock_gcs._get_model_file_uri.return_value = "gs://mock-bucket/api/public/upload/file-123"
     monkeypatch.setattr("src.infrastructure.gcs_service.gcs_service", mock_gcs)
     
     # Setup mock response from generate_content
@@ -49,9 +49,6 @@ async def test_gemini_agents_extract_single_document_schema_happy_path(mock_gemi
     assert result["document_name"] == "National ID"
     assert result["status"] == ExtractionStatus.SUCCESS
     assert result["confidence_score"] == 0.98
-    
-    # Verify cleanup was called
-    mock_gemini_client.aio.files.delete.assert_called_once_with(name="files/mock-file-123")
 
 
 @pytest.mark.asyncio
@@ -90,7 +87,7 @@ async def test_gemini_agents_extract_single_document_schema_gcs_failure(mock_gem
     # Mock GCS Service to throw an exception
     mock_gcs = MagicMock()
     mock_gcs.get_gcs_storage_path.return_value = "api/public/upload/file-123"
-    mock_gcs.download_object_as_bytes.side_effect = Exception("GCS Down")
+    mock_gcs._get_model_file_uri.side_effect = Exception("GCS Down")
     monkeypatch.setattr("src.infrastructure.gcs_service.gcs_service", mock_gcs)
     
     # Act
@@ -118,7 +115,7 @@ async def test_gemini_agents_extract_schemas_batch(mock_gemini_client, monkeypat
     # Mock GCS
     mock_gcs = MagicMock()
     mock_gcs.get_gcs_storage_path.return_value = "api/public/upload/file-1"
-    mock_gcs.download_object_as_bytes.return_value = b"bytes"
+    mock_gcs._get_model_file_uri.return_value = "gs://mock-bucket/api/public/upload/file-1"
     monkeypatch.setattr("src.infrastructure.gcs_service.gcs_service", mock_gcs)
     
     # Mock generate_content response

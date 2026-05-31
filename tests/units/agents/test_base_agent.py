@@ -26,5 +26,11 @@ def test_base_agent_complete_subclass():
         async def extract_single_document_schema(self, metadata: dict):
             yield {}
             
+        async def extract_document_values_stream(self, doc_to_extract: list):
+            yield {}
+            
+        async def extract_single_document_values_stream(self, doc_to_extract, cache_content=None, prompt=None):
+            yield {}
+            
     agent = CompleteAgent()
     assert agent.WORKER_EXTRACT_SCHEMAS_PROMPT is not None
