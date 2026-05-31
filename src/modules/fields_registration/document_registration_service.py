@@ -8,7 +8,6 @@ import json
 
 from src.modules.gcs_operations.direct_gcs_operations_service import DirectGCSOperationsService
 from src.modules.gcs_operations.direct_gcs_operations_schema import  GCSFileObjectMetadata
-from src.agents.schemas.agent_extract_schemas import AgentExtractedSchemaResponse
 from src.cache.redis_cache import RedisService, DOC_METADATA_PREFIX, DOC_METADATA_TTL
 from src.modules.fields_registration.document_registration_schema import *
 from src.agents.orchestrate_agent_call import OrchestrateAgentCall
@@ -52,9 +51,10 @@ class DocumentRegistration:
                     doc_id = str(uuid4())
                                     
                 redis_prefix = f"{DOC_METADATA_PREFIX}_{doc_id}"
+                data = doc.model_dump(mode="json")
                 items.append({
                     "prefix": redis_prefix,
-                    "data": {field.field: field.is_required for field in doc.fields},
+                    "data": data,
                 })
                 
                 tracking_pairs.append((doc_id, doc))
