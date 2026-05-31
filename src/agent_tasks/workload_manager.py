@@ -1,96 +1,123 @@
 import asyncio
 import typing
 
+
 async def multiplex_generators(*generators) -> typing.AsyncGenerator[dict, None]:
     queue = asyncio.Queue()
-    finished = 0
 
     async def worker(gen):
-        nonlocal finished
-        try:
-            async for item in gen:
-                await queue.put(item)
-        finally:
-            finished += 1
-            if finished == len(generators):
-                await queue.put(None)
+        async for item in gen:
+            await queue.put(item)
 
-    for gen in generators:
-        asyncio.create_task(worker(gen))
+    async def run_all():
+        await asyncio.gather(*[worker(gen) for gen in generators])
+        await queue.put(None)
 
-    while True:
-        item = await queue.get()
-        if item is None:
-            break
-        yield item
+    task = asyncio.create_task(run_all())
+
+    try:
+        while True:
+            item = await queue.get()
+            if item is None:
+                break
+            yield item
+    finally:
+        if not task.done():
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
 
 
 class WorkloadManager:
+    CHUNK_SIZE = 4
+    WINDOW_SECONDS = 60
+
     def __init__(self, worker_fn):
-        """
-        Accepts any asynchronous coroutine/generator function that processes a single file.
-        Signature expected: worker_fn(file_meta: dict)
-        """
         self.worker_fn = worker_fn
 
     def _should_divide(self, files: list[dict]) -> bool:
-        """Evaluates batch inputs against performance thresholds."""
-        if len(files) >= 8:
+        if len(files) > self.CHUNK_SIZE:
             return True
-            
         total_pages = sum(f.get("page_count", 0) for f in files)
         total_size_mb = sum(f.get("size_bytes", 0) for f in files) / (1024 * 1024)
-        
         if total_pages >= 8 or total_size_mb >= 10:
             return True
-            
         return False
 
-    def _chunk_workload(self, files: list[dict], chunk_size: int = 4) -> list[list[dict]]:
-        """Splits a batch into smaller worker-friendly groups."""
-        return [files[i:i + chunk_size] for i in range(0, len(files), chunk_size)]
+    def _chunk_workload(self, files: list[dict]) -> list[list[dict]]:
+        return [
+            files[i:i + self.CHUNK_SIZE]
+            for i in range(0, len(files), self.CHUNK_SIZE)
+        ]
+
+    def _exception_fallback(self, file_meta: dict, exc: Exception) -> dict:
+        return {
+            "id": file_meta.get("id", "unknown"),
+            "file_name": file_meta.get("file_name", "unknown"),
+            "status": "failed",
+            "error": str(exc)
+        }
 
     async def _run_worker(self, f: dict) -> dict:
-        """Drains the async generator from worker_fn and returns the final result dict."""
         result = None
         async for event in self.worker_fn(f):
             if "result" in event:
                 result = event["result"]
         return result
 
-    async def process_batch(self, files: list[dict]) -> list[dict]:
-        """Coordinates execution, handling division of labor automatically and blindly."""
-        if not self._should_divide(files):
-            # Fast-path: Execute all tasks concurrently in one small burst
-            tasks = [self._run_worker(f) for f in files]
-            return await asyncio.gather(*tasks)
+    async def _run_chunk(self, chunk: list[dict]) -> list[dict]:
+        tasks = [self._run_worker(f) for f in chunk]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        return [
+            r if not isinstance(r, Exception)
+            else self._exception_fallback(chunk[i], r)
+            for i, r in enumerate(results)
+        ]
 
-        # Slow-path: Split labor across parallel worker pools to protect rate limits
-        chunks = self._chunk_workload(files, chunk_size=4)
+    async def process_batch(self, files: list[dict]) -> list[dict]:
+        if not self._should_divide(files):
+            return await self._run_chunk(files)
+
+        chunks = self._chunk_workload(files)
         final_results = []
-        
-        for chunk in chunks:
-            # Execute this specific chunk block in parallel
-            tasks = [self._run_worker(f) for f in chunk]
-            chunk_results = await asyncio.gather(*tasks)
-            final_results.extend(chunk_results)
-            
-            # Rate-limit safety bumper for free tiers
-            await asyncio.sleep(1) 
-            
+        loop = asyncio.get_event_loop()
+
+        for i, chunk in enumerate(chunks):
+            start = loop.time()
+            results = await self._run_chunk(chunk)
+            final_results.extend(results)
+
+            if i < len(chunks) - 1:
+                elapsed = loop.time() - start
+                wait = max(0, self.WINDOW_SECONDS - elapsed)
+                if wait > 0:
+                    await asyncio.sleep(wait)
+
         return final_results
 
-    async def process_batch_stream(self, files: list[dict]) -> typing.AsyncGenerator[dict, None]:
-        """Coordinates execution, yielding progress and results concurrently as they complete."""
+    async def process_batch_stream(
+        self, files: list[dict]
+    ) -> typing.AsyncGenerator[dict, None]:
         if not self._should_divide(files):
             generators = [self.worker_fn(f) for f in files]
             async for event in multiplex_generators(*generators):
                 yield event
-        else:
-            chunks = self._chunk_workload(files, chunk_size=4)
-            for chunk in chunks:
-                generators = [self.worker_fn(f) for f in chunk]
-                async for event in multiplex_generators(*generators):
-                    yield event
-                await asyncio.sleep(1)
-    
+            return
+
+        chunks = self._chunk_workload(files)
+        loop = asyncio.get_event_loop()
+
+        for i, chunk in enumerate(chunks):
+            start = loop.time()
+            generators = [self.worker_fn(f) for f in chunk]
+            async for event in multiplex_generators(*generators):
+                yield event
+
+            if i < len(chunks) - 1:
+                elapsed = loop.time() - start
+                wait = max(0, self.WINDOW_SECONDS - elapsed)
+                if wait > 0:
+                    await asyncio.sleep(wait)
+                    
