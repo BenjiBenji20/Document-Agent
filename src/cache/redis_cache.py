@@ -133,7 +133,12 @@ class RedisService:
             pipeline = self._client.pipeline()
             for item in items:
                 full_key = self._build_key(prefix=item["prefix"], key=key)
-                serialized = {k: str(v) for k, v in item["data"].items()}
+                serialized = {}
+                for k, v in item["data"].items():
+                    if isinstance(v, (dict, list)):
+                        serialized[k] = json.dumps(v)
+                    else:
+                        serialized[k] = str(v)
                 pipeline.hset(full_key, values=serialized)
                 if ttl:
                     pipeline.expire(full_key, ttl)
