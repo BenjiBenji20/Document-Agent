@@ -140,12 +140,16 @@ class GeminiAgents(BaseAgent):
             
             llm_result = ValuesExtractedByAgent.model_validate_json(response.text)
             success_status = self._extraction_status(llm_result.confidence_score)
+            
+            # Convert list of FieldValuePair to a dictionary
+            flat_field_values = {item.field: item.value for item in llm_result.field_values}
+            
             result = AgentExtractValuesResponse(
                 document_id=str(doc_to_extract.document_id),
                 file_id=file_id,
                 document_name=doc_to_extract.document_name,
                 file_name=doc_to_extract.gcs_file_metadata.file_name,
-                field_values=llm_result.field_values,
+                field_values=flat_field_values,
                 confidence_score=llm_result.confidence_score,
                 score_reason=llm_result.score_reason,
                 status=success_status
@@ -174,7 +178,7 @@ class GeminiAgents(BaseAgent):
             first_doc = group[0]
             meta = FieldsToExtractByAgent(
                 document_name=first_doc.document_name,
-                fields=first_doc.fields
+                fields=[f.model_dump() for f in first_doc.fields]
             )
             
             prompt = await self._prompt_builder(self.WORKER_EXTRACT_SCHEMA_VALUES_PROMPT, meta)
