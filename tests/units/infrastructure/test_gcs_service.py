@@ -144,7 +144,8 @@ def test_get_object_metadata_negative_path_not_found(gcs_svc, mock_gcs_client):
 
 def test_get_model_file_uri_edge_case_google(gcs_svc, monkeypatch):
     # Arrange
-    monkeypatch.setattr(settings, "GCS_BUCKET_NAME", "my-app-bucket")
+    mock_signed_url = "https://signed.com/download"
+    monkeypatch.setattr(gcs_svc, "generate_signed_download_url", MagicMock(return_value=mock_signed_url))
     
     # Act
     # Test permutations of "google" (case-insensitive/whitespace)
@@ -152,8 +153,10 @@ def test_get_model_file_uri_edge_case_google(gcs_svc, monkeypatch):
     uri2 = gcs_svc._get_model_file_uri("file2.pdf", " google ")
     
     # Assert
-    assert uri1 == "gs://my-app-bucket/file1.pdf"
-    assert uri2 == "gs://my-app-bucket/file2.pdf"
+    assert uri1 == mock_signed_url
+    assert uri2 == mock_signed_url
+    gcs_svc.generate_signed_download_url.assert_any_call("file1.pdf")
+    gcs_svc.generate_signed_download_url.assert_any_call("file2.pdf")
 
 def test_get_model_file_uri_edge_case_other(gcs_svc, monkeypatch):
     # Arrange

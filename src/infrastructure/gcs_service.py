@@ -94,11 +94,7 @@ class GCSService:
         Model directly reads the file using public URI
         Returns the correct file reference depending on the model provider.
         """
-        model_provider = model_provider.strip().lower()
-        if model_provider == "google":
-            return f"gs://{settings.GCS_BUCKET_NAME}/{object_key}"
-        else:
-            return self.generate_signed_download_url(object_key)
+        return self.generate_signed_download_url(object_key)
             
     
     def _get_signing_credentials(self):
