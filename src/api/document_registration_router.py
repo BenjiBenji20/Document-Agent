@@ -4,7 +4,7 @@ from src.modules.gcs_operations.direct_gcs_operations_schema import GCSFileObjec
 from src.modules.fields_registration.document_registration_service import DocumentRegistration
 from src.modules.fields_registration.document_registration_schema import *
 from src.dependencies.secrets import document_agent_secret
-from src.dependencies.rate_limit import rate_limit_by_ip
+from src.dependencies.rate_limit import rate_limit_by_ip, check_extraction_rate_limit
 from src.cache.redis_cache import redis_service
 import typing
 from fastapi.responses import StreamingResponse
@@ -73,6 +73,8 @@ async def agent_extract_schemas(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="No files found."
         )
+        
+    await check_extraction_rate_limit(request, len(files))
         
     service = DocumentRegistration(redis_service, request)
     response = service.call_agent_to_extract_schema(files)
