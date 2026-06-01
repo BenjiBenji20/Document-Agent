@@ -12,6 +12,7 @@ logger.debug(f"Binding to 0.0.0.0:{os.environ.get('PORT', '8080')}")
 from fastapi import FastAPI
 from src.core.settings import settings
 from contextlib import asynccontextmanager
+from fastapi.middleware.cors import CORSMiddleware
 
 @asynccontextmanager
 async def life_span(app: FastAPI):
@@ -24,6 +25,15 @@ app = FastAPI(
     description="Extract document text in parallel with the help of agents. Best for automating data encoding.",
     lifespan=life_span
 )
+ 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[settings.DEV_ORIGIN, settings.PROD_ORIGIN],
+    allow_credentials=True,
+    allow_methods=["POST"],
+    allow_headers=["*"],  # Allows all headers
+)
+ 
  
 # Register routers
 from src.api.document_registration_router import router as document_registration_router

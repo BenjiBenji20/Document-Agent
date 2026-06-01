@@ -27,6 +27,9 @@ class Settings(BaseSettings):
     
     AGENT_API_KEY: str | None = None
     AGENT_PROVIDER: str = "google"
+    
+    DEV_ORIGIN: str | None = None
+    PROD_ORIGIN: str | None = None
 
     model_config = SettingsConfigDict(
         env_file=".env",
